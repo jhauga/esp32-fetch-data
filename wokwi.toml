@@ -1,0 +1,6 @@
+# Wokwi simulation config. Build first with `pio run`, then start the
+# simulator from this folder (Wokwi for VS Code) or upload to wokwi.com.
+[wokwi]
+version = 1
+firmware = '.pio/build/esp32dev/firmware.bin'
+elf = '.pio/build/esp32dev/firmware.elf'
