@@ -29,10 +29,10 @@
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
     [ "esp:RX", "$serialMonitor:TX", "", [] ],
     [ "esp:GND.2", "btn1:2.l", "black", [ "h76.8", "v201.4" ] ],
-    [ "esp:33", "btn1:1.l", "ffffff", [ "h19.2", "v96" ] ],
+    [ "esp:33", "btn1:1.l", "#ffffff", [ "h19.2", "v96" ] ],
     [ "lcd1:VCC", "esp:5V", "red", [ "h-249.6", "v211.3" ] ],
-    [ "esp:22", "lcd1:SCL", "ffffff", [ "h0" ] ],
-    [ "esp:21", "lcd1:SDA", "ffffff", [ "h96", "v-48" ] ],
+    [ "esp:22", "lcd1:SCL", "#ffffff", [ "h0" ] ],
+    [ "esp:21", "lcd1:SDA", "#ffffff", [ "h96", "v-48" ] ],
     [ "esp:GND.3", "lcd1:GND", "black", [ "h124.8", "v-105.6", "h9.6" ] ]
   ],
   "dependencies": {}

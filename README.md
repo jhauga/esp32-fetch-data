@@ -47,9 +47,10 @@ esp32-fetch-data.ino   Main sketch: boot, fetch cycle, sleep/wake logic
 Config.h               config.json loader (LittleFS + ArduinoJson) with defaults
 Display.h              Display abstraction, I²C LCD driver, serial fallback
 Storage.h              Non-volatile cache of the last fetched value (NVS)
-data/config.json       Runtime configuration uploaded to the device filesystem
+config.json            Runtime configuration uploaded to the device filesystem
 config.example.json    Annotated example configuration
 platformio.ini         Build configuration and library dependencies
+extra_script.py        Stages config.json into the LittleFS image at build time
 diagram.json           Wokwi circuit definition
 docs/                  Installation and configuration guides
 ```
@@ -63,14 +64,14 @@ pio run
 # Flash the firmware
 pio run -t upload
 
-# Upload data/config.json to the device's LittleFS filesystem
+# Upload config.json to the device's LittleFS filesystem
 pio run -t uploadfs
 
 # Watch the serial output
 pio device monitor
 ```
 
-Edit `data/config.json` before running `uploadfs` to point the device at your own
+Edit `config.json` before running `uploadfs` to point the device at your own
 network and data URL:
 
 ```json

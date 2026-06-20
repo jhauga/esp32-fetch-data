@@ -3,8 +3,8 @@
 All runtime behavior is controlled by `config.json`, stored on the ESP32 LittleFS
 filesystem at `/config.json`. Every key is optional — any value left out falls back
 to a built-in default, and a missing or malformed file leaves the firmware running
-on defaults. Upload the file with `pio run -t uploadfs` after editing
-`data/config.json`.
+on defaults. Upload the file with `pio run -t uploadfs` after editing the
+root `config.json`.
 
 A complete annotated example lives in
 [config.example.json](../config.example.json).

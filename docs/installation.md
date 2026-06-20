@@ -28,14 +28,15 @@ pio run
 # Flash the firmware over USB
 pio run -t upload
 
-# Upload data/config.json to the LittleFS filesystem
+# Upload config.json to the LittleFS filesystem
 pio run -t uploadfs
 
 # Open the serial monitor at 115200 baud
 pio device monitor
 ```
 
-Run `uploadfs` again whenever you change `data/config.json`.
+Run `uploadfs` again whenever you change `config.json`. The root `config.json` is
+staged into the filesystem image automatically by `extra_script.py`.
 
 ## Option B: Arduino IDE
 
@@ -47,8 +48,10 @@ Run `uploadfs` again whenever you change `data/config.json`.
    automatically.
 4. Select your ESP32 board and port, then upload.
 5. Upload `config.json` to the device filesystem with the
-   [Arduino LittleFS upload plugin](https://github.com/lorol/arduino-esp32fs-plugin),
-   placing the file inside a `data/` folder next to the sketch.
+   [Arduino LittleFS upload plugin](https://github.com/lorol/arduino-esp32fs-plugin).
+   This plugin uploads from a `data/` folder, so copy the root `config.json` into
+   a `data/` folder next to the sketch before uploading. (PlatformIO stages this
+   automatically; the Arduino IDE plugin does not.)
 
 Without a `config.json` on the filesystem, the firmware runs on its built-in
 defaults — useful for a first smoke test.
