@@ -31,7 +31,7 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   simulator, where deep-sleep `ext0` wake did not resume the device. Deep sleep
   remains available as the battery-saving mode via `config.json`.
 
-## [1.0.0] - 2026-06-20
+## [0.0.0-local] - 2026-06-20
 
 ### Added
 
