@@ -26,8 +26,7 @@
   },
   "power": {
     "shutdown": {
-      "method": "deepSleep",
-      "delayMs": 10000
+      "method": "deepSleep"
     }
   },
   "storage": {

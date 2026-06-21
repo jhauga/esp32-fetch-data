@@ -26,7 +26,7 @@ struct AppConfig {
   // --- Data source --------------------------------------------------------
   String dataUrl =
       "https://raw.githubusercontent.com/jhauga/support-repo/"
-      "refs/heads/esp32-fetch-data/file.txt";
+      "refs/heads/esp32-fetch-text/file.txt";
   uint32_t httpTimeoutMs = 10000UL;
 
   // --- Display ------------------------------------------------------------
@@ -41,6 +41,8 @@ struct AppConfig {
   int i2cSda = 21;
   int i2cScl = 22;
   bool preserveNewlines = false;  // some displays can render embedded newlines
+  // How long fetched data stays on screen before the display turns off and the
+  // device idles dark until the next action.
   uint32_t displayTimeMs = 10000UL;
 
   // --- Action / trigger ---------------------------------------------------
@@ -53,8 +55,12 @@ struct AppConfig {
   bool refreshOnAction = true;
 
   // --- Power management ---------------------------------------------------
-  ShutdownMethod shutdownMethod = ShutdownMethod::DeepSleep;
-  uint32_t shutdownDelayMs = 10000UL;  // display window before powering down
+  // Default to the always-on polling mode: the button is read directly in the
+  // loop, so a press reliably triggers a fetch everywhere (including the Wokwi
+  // simulator, which runs on these defaults). Deep sleep is the battery-saving
+  // mode for real hardware -- enable it in config.json with
+  // power.shutdown.method = "deepSleep" (button wake via ext0 works on silicon).
+  ShutdownMethod shutdownMethod = ShutdownMethod::None;
 
   // --- Storage / offline fallback ----------------------------------------
   uint32_t connectionErrorMs = 5000UL;  // "Connection Error" notice duration
@@ -158,7 +164,6 @@ inline bool loadConfig(AppConfig& cfg, const char* path = "/config.json") {
     cfg.shutdownMethod =
         config_detail::parseShutdown(power["shutdown"]["method"].as<String>());
   }
-  cfg.shutdownDelayMs = power["shutdown"]["delayMs"] | cfg.shutdownDelayMs;
 
   // Storage
   JsonObjectConst storage = doc["storage"];

@@ -59,27 +59,41 @@ Wait for `SUCCESS` in the terminal. This creates the files `wokwi.toml` points t
 1. Open `diagram.json` in the editor (optional, but it shows the circuit).
 2. Press `F1` → **`Wokwi: Start Simulator`**.
 
-A panel opens showing the ESP32 board, the LCD, and the green button. The LCD lights
-up and the firmware starts running.
+A panel opens showing the ESP32 board, the LCD, and the green button. The LCD stays
+**dark** — the firmware does not light it or fetch until the action fires.
 
 ## Step 4 — Use it
 
-- The device boots, connects to WiFi, fetches the data file, and shows the result on
-  the LCD. (Wokwi's `Wokwi-GUEST` network has real internet access, so the live fetch
-  works in the simulation.)
-- **Click the green button** in the diagram to trigger another fetch — this simulates
-  pressing the physical button to wake the device.
+- On power-up the device does **not** fetch automatically, and the LCD stays off. It
+  waits, polling the button.
+- **Click the green button** in the diagram to run a fetch. The LCD lights up, the
+  device connects to WiFi, fetches the data file, and shows the result. (Wokwi's
+  `Wokwi-GUEST` network has real internet access, so the live fetch works in the
+  simulation.)
+- The result stays on screen for `display.displayTimeMs` (default 10 s), then the LCD
+  turns off again and waits. Click the button any time to fetch again.
 - The **serial monitor** appears in the simulator panel. It prints the boot, WiFi,
-  fetch, and sleep messages.
+  and fetch messages.
 
-A healthy run prints something like:
+On power-up the serial monitor prints:
 
 ```
 Boot (wake cause: 0).
+Idle: waiting for action to fetch.
+```
+
+After you click the button, a healthy fetch prints:
+
+```
 Connected. IP: 10.13.37.2
 Fetched data: Hello from the data file
-Deep sleep: wake on button (GPIO 33).
 ```
+
+> **Why no deep sleep in the simulator?** The built-in defaults use the always-on
+> polling mode so the button reliably triggers a fetch in Wokwi. Deep sleep (with
+> button wake) is the battery-saving mode for real hardware — enable it in
+> `config.json` with `power.shutdown.method = "deepSleep"`. See
+> [configuration.md](configuration.md).
 
 To stop, press `F1` → **`Wokwi: Stop Simulator`** (or close the panel).
 
@@ -89,8 +103,14 @@ To stop, press `F1` → **`Wokwi: Stop Simulator`** (or close the panel).
   firmware runs on its built-in defaults (defined in `Config.h`). Those defaults match
   the reference circuit, so it works out of the box. To try different settings in
   simulation, edit the defaults in `Config.h` and rebuild.
-- **Deep sleep:** after the display window, the device enters deep sleep and the LCD
-  turns off. Click the green button to wake it and fetch again.
+- **Button only:** the firmware never fetches on its own. The LCD stays dark until you
+  click the button; it lights up to show the result, then turns off after the display
+  window (`display.displayTimeMs`).
+- **A dark LCD is normal:** between fetches the display is intentionally off to save
+  power. Click the button to wake it.
+- **Deep sleep:** not used by default (see the note in Step 4). When enabled in
+  `config.json` for hardware, the device sleeps after the display window and the
+  button press wakes it to fetch again.
 
 ## Troubleshooting
 
@@ -99,6 +119,6 @@ To stop, press `F1` → **`Wokwi: Stop Simulator`** (or close the panel).
 | "Cannot find firmware" / file not found            | Run **Step 2** (build) first. Confirm `.pio/build/esp32dev/firmware.bin` exists.    |
 | `Wokwi: Start Simulator` is missing                | The extension is not installed/enabled, or VS Code needs a reload.                  |
 | License / activation prompt keeps appearing        | Re-run **`Wokwi: Request a new License`** and complete the browser step.            |
-| LCD stays blank                                    | Make sure you built after your latest code change, then restart the simulator.      |
+| LCD is dark                                        | Expected while idle. Click the button to fetch. If it stays dark after a click, rebuild (Step 2) and restart the simulator. |
 | No data, only a connection error                   | The data URL may be unreachable; check `data.url` default in `Config.h`.            |
 | Changes do not appear                              | Rebuild (Step 2). Wokwi runs the compiled binary, not the open editor.              |

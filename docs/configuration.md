@@ -40,8 +40,7 @@ A complete annotated example lives in
   },
   "power": {
     "shutdown": {
-      "method": "deepSleep",
-      "delayMs": 10000
+      "method": "deepSleep"
     }
   },
   "storage": {
@@ -78,7 +77,7 @@ A complete annotated example lives in
 | `i2c.sda`         | number  | `21`       | I²C SDA pin.                                                          |
 | `i2c.scl`         | number  | `22`       | I²C SCL pin.                                                          |
 | `preserveNewlines`| boolean | `false`    | Keep embedded newlines instead of collapsing them to spaces.         |
-| `displayTimeMs`   | number  | `10000`    | How long fetched data stays on screen before sleep.                  |
+| `displayTimeMs`   | number  | `10000`    | How long fetched data stays on screen, after which the display turns off until the next action. |
 
 **Unaccounted displays.** If `type` is not a built-in driver, the firmware logs a
 warning and switches to a serial fallback so the device keeps running. Set
@@ -103,8 +102,7 @@ Selects what triggers a fetch.
 
 | Key       | Type   | Default     | Description                                                          |
 | --------- | ------ | ----------- | ------------------------------------------------------------------- |
-| `method`  | string | `deepSleep` | `deepSleep`, `lightSleep`, or `none` (always-on polling loop).      |
-| `delayMs` | number | `10000`     | Awake display window before powering down.                          |
+| `method`  | string | `none`      | `none` (always-on polling loop), `deepSleep`, or `lightSleep`. Deep sleep is the battery-saving mode for hardware; the default `none` polls the button and works everywhere, including the Wokwi simulator. |
 
 ### `storage`
 

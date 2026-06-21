@@ -28,15 +28,15 @@ pio run
 # Flash the firmware over USB
 pio run -t upload
 
-# Upload config.json to the LittleFS filesystem
+# Upload data/config.json to the LittleFS filesystem
 pio run -t uploadfs
 
 # Open the serial monitor at 115200 baud
 pio device monitor
 ```
 
-Run `uploadfs` again whenever you change `config.json`. The root `config.json` is
-staged into the filesystem image automatically by `extra_script.py`.
+Run `uploadfs` again whenever you change `data/config.json`. PlatformIO builds the
+filesystem image from the `data/` folder and writes it to the LittleFS partition.
 
 ## Option B: Arduino IDE
 
@@ -44,14 +44,15 @@ staged into the filesystem image automatically by `extra_script.py`.
 2. Install these libraries through the Library Manager:
    - **ArduinoJson** by Benoit Blanchon
    - **LiquidCrystal_I2C** by Frank de Brabander / Marco Schwartz
-3. Open `esp32-fetch-data.ino`. The `.h` files in the same folder are compiled
-   automatically.
+3. The Arduino IDE expects a sketch folder whose name matches the `.ino` file.
+   Create a folder named `esp32-fetch-data`, then copy `src/main.cpp` into it
+   renamed to `esp32-fetch-data.ino` alongside the three `.h` files from `src/`.
+   Open that `.ino`; the `.h` files in the same folder are compiled automatically.
 4. Select your ESP32 board and port, then upload.
 5. Upload `config.json` to the device filesystem with the
    [Arduino LittleFS upload plugin](https://github.com/lorol/arduino-esp32fs-plugin).
-   This plugin uploads from a `data/` folder, so copy the root `config.json` into
-   a `data/` folder next to the sketch before uploading. (PlatformIO stages this
-   automatically; the Arduino IDE plugin does not.)
+   This plugin uploads from a `data/` folder, so copy `data/config.json` into a
+   `data/` folder next to the sketch before uploading.
 
 Without a `config.json` on the filesystem, the firmware runs on its built-in
 defaults — useful for a first smoke test.
