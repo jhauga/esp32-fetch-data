@@ -4,7 +4,7 @@
     "password": ""
   },
   "data": {
-    "url": "https://raw.githubusercontent.com/jhauga/support-repo/refs/heads/esp32-fetch-data/file.txt",
+    "url": "https://raw.githubusercontent.com/jhauga/support-repo/refs/heads/esp32-fetch-text/file.txt",
     "httpTimeoutMs": 10000
   },
   "display": {

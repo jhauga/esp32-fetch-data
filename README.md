@@ -52,7 +52,8 @@ config.example.json    Annotated example configuration
 platformio.ini         Build configuration and library dependencies
 extra_script.py        Stages config.json into the LittleFS image at build time
 diagram.json           Wokwi circuit definition
-docs/                  Installation and configuration guides
+wokwi.toml             Wokwi simulator configuration
+docs/                  Installation, configuration, and Wokwi simulation guides
 ```
 
 ## Quick start (PlatformIO)
@@ -83,6 +84,12 @@ network and data URL:
 
 See [docs/installation.md](docs/installation.md) for the Arduino IDE workflow and
 [docs/configuration.md](docs/configuration.md) for every available option.
+
+## Try it in the browser-free simulator (no hardware)
+
+You can run the firmware in a simulated circuit inside VS Code with the Wokwi
+extension — build with PlatformIO, then start the simulator and click the button.
+Follow the [Wokwi VS Code quickstart](docs/wokwi-vscode.md).
 
 ## How it works
 

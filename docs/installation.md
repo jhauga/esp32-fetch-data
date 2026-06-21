@@ -58,9 +58,12 @@ defaults — useful for a first smoke test.
 
 ## Simulation (Wokwi)
 
-A Wokwi circuit definition is included in `diagram.json`. After building with
-PlatformIO, start the Wokwi simulator from this folder. In simulation the
-filesystem is typically empty, so the firmware runs on its built-in defaults.
+You can run the firmware in a simulated circuit with no hardware using the Wokwi
+for VS Code extension. A circuit (`diagram.json`) and Wokwi config (`wokwi.toml`)
+are included. See the step-by-step [Wokwi VS Code quickstart](wokwi-vscode.md).
+
+In simulation the firmware runs on its built-in defaults (`config.json` is not
+loaded), which match the reference circuit.
 
 ## Verifying
 
