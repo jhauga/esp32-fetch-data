@@ -9,23 +9,23 @@ different displays, triggers, and timing without recompiling.
 
 ## Features
 
-- **Button-gated fetch** — the firmware never fetches on its own. On boot the display
+- **Button-gated fetch** - the firmware never fetches on its own. On boot the display
   stays off; a button press (or other configured trigger) runs one fetch and shows the
   result.
-- **Display off when idle** — the display lights up only to show a fetch result. After
+- **Display off when idle** - the display lights up only to show a fetch result. After
   `display.displayTimeMs` it turns off and shows nothing until the next action, so the
   device stays dark (and lower power) between fetches.
-- **Optional low-power operation** — enable deep sleep in `config.json` and the
+- **Optional low-power operation** - enable deep sleep in `config.json` and the
   device fetches, shows the result for a configured window, then powers down and
   wakes on the next button press, as if the power were switched back on. This lets a
   small battery pack last far longer than a continuously powered display. (The
-  built-in default is the always-on polling mode, which works everywhere — including
-  the Wokwi simulator — without relying on deep-sleep wake.)
-- **Offline cache** — the last successful reading is stored in non-volatile
+  built-in default is the always-on polling mode, which works everywhere - including
+  the Wokwi simulator - without relying on deep-sleep wake.)
+- **Offline cache** - the last successful reading is stored in non-volatile
   memory. If a fetch fails, the device shows a brief `Connection Error` notice and
   then falls back to the cached value (`Fetch memory: <value>`). On the very first
   run with nothing cached, it shows `Fetch memory: <none>`.
-- **File-based configuration** — WiFi, data URL, display type and size, the
+- **File-based configuration** - WiFi, data URL, display type and size, the
   trigger action, timing, and the shutdown method are all set in `config.json`.
   Every option has a safe built-in default, so the firmware runs even when no
   config file is present.
@@ -97,15 +97,15 @@ See [docs/installation.md](docs/installation.md) for the Arduino IDE workflow an
 ## Try it in the browser-free simulator (no hardware)
 
 You can run the firmware in a simulated circuit inside VS Code with the Wokwi
-extension — build with PlatformIO, then start the simulator and click the button.
+extension - build with PlatformIO, then start the simulator and click the button.
 Follow the [Wokwi VS Code quickstart](docs/wokwi-vscode.md).
 
 ## How it works
 
 A button or sensor trigger is treated as user-initiated: the firmware fetches only
 when that action fires, never on its own. A cold power-on leaves the display off and
-waits for the action instead of fetching. When the action fires — or when the trigger
-is a timer — it runs a single fetch cycle:
+waits for the action instead of fetching. When the action fires - or when the trigger
+is a timer - it runs a single fetch cycle:
 
 1. Light the display and connect to WiFi (progress shown on the display).
 2. Fetch the data file and sanitize it to fit the display.
@@ -115,7 +115,7 @@ is a timer — it runs a single fetch cycle:
    and idle dark until the next action.
 
 By default (`power.shutdown.method = "none"`) the firmware stays awake and polls the
-button, so a press reliably triggers a fetch on any setup — including the Wokwi
+button, so a press reliably triggers a fetch on any setup - including the Wokwi
 simulator. Setting the method to `"deepSleep"` switches to the battery-saving cycle:
 after the display window the device enters deep sleep and a button press wakes it
 (via the RTC `ext0` source) to fetch again. `"lightSleep"` is a middle ground that

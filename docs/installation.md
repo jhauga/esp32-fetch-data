@@ -55,7 +55,7 @@ filesystem image from the `data/` folder and writes it to the LittleFS partition
    `data/` folder next to the sketch before uploading.
 
 Without a `config.json` on the filesystem, the firmware runs on its built-in
-defaults — useful for a first smoke test.
+defaults - useful for a first smoke test.
 
 ## Simulation (Wokwi)
 

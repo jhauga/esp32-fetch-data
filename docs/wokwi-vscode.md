@@ -1,23 +1,23 @@
-# Wokwi for VS Code — Quickstart
+# Wokwi for VS Code - Quickstart
 
-Run the firmware in a simulated ESP32 circuit, right inside VS Code — no physical
+Run the firmware in a simulated ESP32 circuit, right inside VS Code - no physical
 hardware needed. This guide assumes you have never used Wokwi before.
 
 The repo already includes everything the simulator needs:
 
-- `diagram.json` — the virtual circuit (ESP32 + LCD + button)
-- `wokwi.toml` — tells Wokwi which compiled firmware to run
+- `diagram.json` - the virtual circuit (ESP32 + LCD + button)
+- `wokwi.toml` - tells Wokwi which compiled firmware to run
 
 You only have to build the firmware once and press play.
 
 ## Prerequisites (one-time)
 
-1. **Wokwi Simulator** extension — installed.
-2. **PlatformIO IDE** extension — used to compile the firmware. Install it from the
+1. **Wokwi Simulator** extension - installed.
+2. **PlatformIO IDE** extension - used to compile the firmware. Install it from the
    VS Code Extensions panel (search "PlatformIO IDE") if you do not have it. After
    it installs, let it finish setting up and reload VS Code when prompted.
 
-## Step 1 — Activate your free Wokwi license (one-time)
+## Step 1 - Activate your free Wokwi license (one-time)
 
 The extension needs a free license for personal/educational use.
 
@@ -29,7 +29,7 @@ The extension needs a free license for personal/educational use.
 
 You only do this once per machine.
 
-## Step 2 — Build the firmware
+## Step 2 - Build the firmware
 
 Wokwi runs the *compiled* firmware, so build it first.
 
@@ -54,15 +54,15 @@ Wait for `SUCCESS` in the terminal. This creates the files `wokwi.toml` points t
 > Rebuild (repeat this step) any time you change the `.ino` or `.h` files. Wokwi
 > always runs the last build, not your unsaved edits.
 
-## Step 3 — Start the simulator
+## Step 3 - Start the simulator
 
 1. Open `diagram.json` in the editor (optional, but it shows the circuit).
 2. Press `F1` → **`Wokwi: Start Simulator`**.
 
 A panel opens showing the ESP32 board, the LCD, and the green button. The LCD stays
-**dark** — the firmware does not light it or fetch until the action fires.
+**dark** - the firmware does not light it or fetch until the action fires.
 
-## Step 4 — Use it
+## Step 4 - Use it
 
 - On power-up the device does **not** fetch automatically, and the LCD stays off. It
   waits, polling the button.
@@ -91,7 +91,7 @@ Fetched data: Hello from the data file
 
 > **Why no deep sleep in the simulator?** The built-in defaults use the always-on
 > polling mode so the button reliably triggers a fetch in Wokwi. Deep sleep (with
-> button wake) is the battery-saving mode for real hardware — enable it in
+> button wake) is the battery-saving mode for real hardware - enable it in
 > `config.json` with `power.shutdown.method = "deepSleep"`. See
 > [configuration.md](configuration.md).
 
