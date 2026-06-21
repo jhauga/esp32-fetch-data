@@ -1,4 +1,4 @@
-# esp32-fetch-data
+# [esp32-fetch-data](https://jhauga.github.io/esp32-fetch-data/)
 
 - `ctrl + click` to see the project on [wokwi.com](https://wokwi.com/projects/467393527818771457)
 
