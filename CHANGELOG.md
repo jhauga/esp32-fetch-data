@@ -3,6 +3,36 @@
 All notable changes to this project are documented in this file. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.0] - 2026-06-22
+
+### Added
+
+- Display drivers for the SSD1306 OLED (`oled_ssd1306`), Grove SH1107 OLED
+  (`oled_sh1107`), parallel character LCD (`lcd`, 16x2 / 20x4), ILI9341 TFT
+  (`tft_ili9341`), ILI9341 touch screen (`tft_ili9341_touch`), and MAX7219 LED
+  dot-matrix (`matrix_max7219`). Each is gated behind a build flag so the default
+  firmware still compiles with no extra libraries.
+- Config-driven, plug-and-play builds: the pre-build script
+  `scripts/configure_display.py` reads the `display` block from
+  `data/config.json` and automatically selects the driver build flag, installs
+  the matching library, and bakes in the display defaults. Selecting a display is
+  now just editing `config.json` and rebuilding, with no `platformio.ini` or
+  `Config.h` edits.
+- The configured display now also works in the Wokwi simulator, which does not
+  load `config.json` at runtime: the script injects the display settings as
+  compile-time defaults so the firmware drives the configured display in
+  simulation.
+- Optional display-wiring keys in `config.json` for the non-I²C drivers:
+  `display.parallel` (parallel LCD pins), `display.spi` (SPI cs/dc/rst pins),
+  `display.rotation` (ILI9341 orientation), and `display.matrixDevices`
+  (chained MAX7219 modules).
+
+### Changed
+
+- The built-in display defaults in `Config.h` are now derived from compile-time
+  macros injected by the build script, falling back to the reference `lcd_i2c`
+  circuit when the script does not run.
+
 ## [0.0.0]
 
 ### Changed
