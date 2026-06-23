@@ -1,0 +1,36 @@
+{
+  "wifi": {
+    "ssid": "Wokwi-GUEST",
+    "password": ""
+  },
+  "data": {
+    "url": "https://raw.githubusercontent.com/jhauga/support-repo/refs/heads/esp32-fetch-text/file.txt",
+    "httpTimeoutMs": 10000
+  },
+  "display": {
+    "type": "oled_ssd1306",
+    "externalHandler": "",
+    "i2cAddress": "0x3c",
+    "columns": 16,
+    "rows": 8,
+    "i2c": { "sda": 21, "scl": 22 },
+    "preserveNewlines": false,
+    "displayTimeMs": 10000
+  },
+  "action": {
+    "type": "button",
+    "button": { "pin": 33, "activeLow": true },
+    "sensor": { "pin": 27, "holdMs": 1500 },
+    "timer": { "intervalMs": 900000 },
+    "refreshOnAction": true
+  },
+  "power": {
+    "shutdown": {
+      "method": "deepSleep",
+      "delayMs": 10000
+    }
+  },
+  "storage": {
+    "connectionErrorMs": 5000
+  }
+}
