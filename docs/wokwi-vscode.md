@@ -99,10 +99,12 @@ To stop, press `F1` → **`Wokwi: Stop Simulator`** (or close the panel).
 
 ## Notes
 
-- **Configuration in simulation:** the simulator does not load `config.json`, so the
-  firmware runs on its built-in defaults (defined in `Config.h`). Those defaults match
-  the reference circuit, so it works out of the box. To try different settings in
-  simulation, edit the defaults in `Config.h` and rebuild.
+- **Configuration in simulation:** the simulator does not load `config.json` at
+  runtime, but the pre-build script `scripts/configure_display.py` reads it at build
+  time and bakes the configured display into the firmware. So editing
+  `data/config.json` (the `display` block) and rebuilding is enough to drive a
+  different display in simulation - no `Config.h` edits. Match the `diagram.json` part
+  to the display you select.
 - **Button only:** the firmware never fetches on its own. The LCD stays dark until you
   click the button; it lights up to show the result, then turns off after the display
   window (`display.displayTimeMs`).

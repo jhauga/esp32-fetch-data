@@ -12,6 +12,29 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
+// Compile-time display defaults. scripts/configure_display.py injects these
+// from data/config.json so the firmware selects the configured display even
+// where config.json is not loaded (the Wokwi simulator). When the script does
+// not run, these fall back to the reference lcd_i2c circuit.
+#ifndef DISPLAY_TYPE_DEFAULT
+#define DISPLAY_TYPE_DEFAULT "lcd_i2c"
+#endif
+#ifndef DISPLAY_ADDR_DEFAULT
+#define DISPLAY_ADDR_DEFAULT 0x27
+#endif
+#ifndef DISPLAY_COLS_DEFAULT
+#define DISPLAY_COLS_DEFAULT 16
+#endif
+#ifndef DISPLAY_ROWS_DEFAULT
+#define DISPLAY_ROWS_DEFAULT 2
+#endif
+#ifndef DISPLAY_SDA_DEFAULT
+#define DISPLAY_SDA_DEFAULT 21
+#endif
+#ifndef DISPLAY_SCL_DEFAULT
+#define DISPLAY_SCL_DEFAULT 22
+#endif
+
 // Action that triggers a data fetch.
 enum class ActionType { Button, Sensor, Timer, None };
 
@@ -30,20 +53,41 @@ struct AppConfig {
   uint32_t httpTimeoutMs = 10000UL;
 
   // --- Display ------------------------------------------------------------
-  // `displayType` selects the driver. "lcd_i2c" is built in. Any other value
-  // routes through the external handler hook so unaccounted displays can be
-  // supported without modifying core code.
-  String displayType = "lcd_i2c";
+  // `displayType` selects the driver. "lcd_i2c" is built in. The optional
+  // drivers in Display.h ("oled_ssd1306", "oled_sh1107", "lcd",
+  // "tft_ili9341", "tft_ili9341_touch", "matrix_max7219") compile only when
+  // their build flag is set. Any unrecognized value routes through the
+  // external handler hook / serial fallback so the firmware always boots.
+  String displayType = DISPLAY_TYPE_DEFAULT;
   String externalDisplayHandler = "";  // optional hook id for custom displays
-  uint8_t lcdAddress = 0x27;
-  uint8_t lcdColumns = 16;
-  uint8_t lcdRows = 2;
-  int i2cSda = 21;
-  int i2cScl = 22;
+  uint8_t lcdAddress = DISPLAY_ADDR_DEFAULT;
+  uint8_t lcdColumns = DISPLAY_COLS_DEFAULT;
+  uint8_t lcdRows = DISPLAY_ROWS_DEFAULT;
+  int i2cSda = DISPLAY_SDA_DEFAULT;
+  int i2cScl = DISPLAY_SCL_DEFAULT;
   bool preserveNewlines = false;  // some displays can render embedded newlines
   // How long fetched data stays on screen before the display turns off and the
   // device idles dark until the next action.
   uint32_t displayTimeMs = 10000UL;
+
+  // Optional-driver wiring. These are consumed only by the #ifdef-gated drivers
+  // in Display.h; the default lcd_i2c build ignores them entirely.
+  // Parallel character LCD (LiquidCrystal): register-select, enable and the
+  // four 4-bit data pins.
+  int lcdRsPin = 19;
+  int lcdEnPin = 23;
+  int lcdD4Pin = 18;
+  int lcdD5Pin = 17;
+  int lcdD6Pin = 16;
+  int lcdD7Pin = 15;
+  // SPI display control pins: ILI9341 TFT chip-select/data-command/reset and
+  // the MAX7219 matrix chip-select. Clock and data ride the board's hardware
+  // SPI bus (VSPI: SCK 18, MOSI 23).
+  int spiCsPin = 5;
+  int spiDcPin = 2;
+  int spiRstPin = 4;
+  int tftRotation = 1;    // ILI9341 orientation, 0-3 (landscape by default)
+  int matrixDevices = 4;  // number of chained 8x8 MAX7219 modules
 
   // --- Action / trigger ---------------------------------------------------
   ActionType actionType = ActionType::Button;
@@ -145,6 +189,20 @@ inline bool loadConfig(AppConfig& cfg, const char* path = "/config.json") {
   cfg.i2cScl = display["i2c"]["scl"] | cfg.i2cScl;
   cfg.preserveNewlines = display["preserveNewlines"] | cfg.preserveNewlines;
   cfg.displayTimeMs = display["displayTimeMs"] | cfg.displayTimeMs;
+  // Optional-driver wiring (parallel LCD pins, SPI control pins, matrix size).
+  JsonObjectConst parallel = display["parallel"];
+  cfg.lcdRsPin = parallel["rs"] | cfg.lcdRsPin;
+  cfg.lcdEnPin = parallel["en"] | cfg.lcdEnPin;
+  cfg.lcdD4Pin = parallel["d4"] | cfg.lcdD4Pin;
+  cfg.lcdD5Pin = parallel["d5"] | cfg.lcdD5Pin;
+  cfg.lcdD6Pin = parallel["d6"] | cfg.lcdD6Pin;
+  cfg.lcdD7Pin = parallel["d7"] | cfg.lcdD7Pin;
+  JsonObjectConst spi = display["spi"];
+  cfg.spiCsPin = spi["cs"] | cfg.spiCsPin;
+  cfg.spiDcPin = spi["dc"] | cfg.spiDcPin;
+  cfg.spiRstPin = spi["rst"] | cfg.spiRstPin;
+  cfg.tftRotation = display["rotation"] | cfg.tftRotation;
+  cfg.matrixDevices = display["matrixDevices"] | cfg.matrixDevices;
 
   // Action / trigger
   JsonObjectConst action = doc["action"];

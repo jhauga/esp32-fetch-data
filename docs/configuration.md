@@ -69,7 +69,7 @@ A complete annotated example lives in
 
 | Key               | Type    | Default    | Description                                                            |
 | ----------------- | ------- | ---------- | --------------------------------------------------------------------- |
-| `type`            | string  | `lcd_i2c`  | Display driver. `lcd_i2c` is built in; other values use the fallback.  |
+| `type`            | string  | `lcd_i2c`  | Display driver. `lcd_i2c` is built in; the optional drivers below are routable only when their build flag is set. Unknown values use the fallback. |
 | `externalHandler` | string  | `""`       | Identifier for a custom display handler when `type` is unaccounted.   |
 | `i2cAddress`      | string  | `0x27`     | I²C address; accepts hex strings (`"0x27"`) or numbers.               |
 | `columns`         | number  | `16`       | Display width in characters.                                          |
@@ -83,6 +83,46 @@ A complete annotated example lives in
 warning and switches to a serial fallback so the device keeps running. Set
 `externalHandler` to the name of your own handler to integrate a display the
 firmware does not natively support.
+
+#### Supported display types
+
+Set `type` in `config.json` and rebuild - that is all. The pre-build script
+`scripts/configure_display.py` reads `config.json`, then compiles the matching
+driver, installs its library, and applies the display defaults automatically
+(plug and play). The build flags below are what the script sets for you; you do
+not edit `platformio.ini` or `Config.h` by hand.
+
+| `type`              | Hardware                                   | Build flag          |
+| ------------------- | ------------------------------------------ | ------------------- |
+| `lcd_i2c`           | 16x2 / 20x4 character LCD over I²C         | (always built)      |
+| `lcd`               | 16x2 / 20x4 character LCD, parallel wiring | `USE_LCD_PARALLEL`  |
+| `oled_ssd1306`      | SSD1306 OLED over I²C                      | `USE_SSD1306`       |
+| `oled_sh1107`       | Grove SH1107 OLED over I²C                 | `USE_SH1107`        |
+| `tft_ili9341`       | ILI9341 2.8" TFT-LCD over SPI             | `USE_ILI9341`       |
+| `tft_ili9341_touch` | ILI9341 2.8" touch screen (same output)   | `USE_ILI9341_TOUCH` |
+| `matrix_max7219`    | MAX7219 LED dot-matrix chain over SPI      | `USE_MAX7219`       |
+
+Both the I²C and parallel LCD entries cover the 16x2 and 20x4 sizes; set
+`columns` and `rows` to match the panel. The touch screen renders identically to
+`tft_ili9341` (touch input is read by the action subsystem, not the display).
+
+#### Optional driver wiring
+
+These keys are read only by the optional drivers and ignored by `lcd_i2c`.
+
+| Key             | Type   | Default | Description                                         |
+| --------------- | ------ | ------- | --------------------------------------------------- |
+| `parallel.rs`   | number | `19`    | Parallel LCD register-select pin.                   |
+| `parallel.en`   | number | `23`    | Parallel LCD enable pin.                            |
+| `parallel.d4`–`d7` | number | `18/17/16/15` | Parallel LCD 4-bit data pins.              |
+| `spi.cs`        | number | `5`     | SPI chip-select (ILI9341 TFT / MAX7219 matrix).     |
+| `spi.dc`        | number | `2`     | ILI9341 data/command pin.                           |
+| `spi.rst`       | number | `4`     | ILI9341 reset pin.                                  |
+| `rotation`      | number | `1`     | ILI9341 orientation, `0`–`3`.                       |
+| `matrixDevices` | number | `4`     | Number of chained 8x8 MAX7219 modules.              |
+
+SPI displays use the board's hardware SPI bus (VSPI: SCK 18, MOSI 23) for clock
+and data.
 
 ### `action`
 
