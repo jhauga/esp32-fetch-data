@@ -1,6 +1,6 @@
 # [esp32-fetch-data](https://jhauga.github.io/esp32-fetch-data/)
 
-- `ctrl + click` to see the project on [wokwi.com](https://wokwi.com/projects/467393527818771457)
+- `ctrl + click` to see the project on [wokwi.com](https://wokwi.com/projects/467393527818771457) at version `0.1.0`
 
 Firmware for an ESP32 that fetches a text data file over WiFi and prints it to a
 character display. It is built for low-power, battery-friendly operation and is
@@ -57,6 +57,9 @@ src/main.cpp           Main program: boot, fetch cycle, sleep/wake logic
 src/Config.h           config.json loader (LittleFS + ArduinoJson) with defaults
 src/Display.h          Display abstraction, I²C LCD driver, serial fallback
 src/Storage.h          Non-volatile cache of the last fetched value (NVS)
+src/Arduino_ota.h      Optional over-the-air update service (uploadMethod = "ota")
+scripts/               Pre-build config scripts and the OTA push helper
+.github/workflows/     CI: build firmware and publish OTA release assets
 data/config.json       Runtime configuration uploaded to the device filesystem
 config.example.json    Annotated example configuration
 platformio.ini         Build configuration and library dependencies
@@ -90,6 +93,12 @@ network and data URL:
   "data": { "url": "https://example.com/data.txt" }
 }
 ```
+
+To update over WiFi instead of USB, set `"uploadMethod": "ota"` in `config.json`.
+OTA stays battery-friendly and deep-sleep compatible: the device offers one
+update opportunity in the brief window after each fetch (push a build, or let it
+pull a newer one from a proxy), then sleeps. See
+[Uploading firmware](docs/installation.md#uploading-firmware).
 
 See [docs/installation.md](docs/installation.md) for the Arduino IDE workflow and
 [docs/configuration.md](docs/configuration.md) for every available option.

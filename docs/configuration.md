@@ -17,6 +17,7 @@ A complete annotated example lives in
     "ssid": "YourNetwork",
     "password": "your-password"
   },
+  "uploadMethod": "usb",
   "data": {
     "url": "https://example.com/data.txt",
     "httpTimeoutMs": 10000
@@ -43,6 +44,12 @@ A complete annotated example lives in
       "method": "deepSleep"
     }
   },
+  "ota": {
+    "mode": "window",
+    "windowMs": 60000,
+    "proxyUrl": "",
+    "password": ""
+  },
   "storage": {
     "connectionErrorMs": 5000
   }
@@ -55,8 +62,19 @@ A complete annotated example lives in
 
 | Key        | Type   | Default       | Description                  |
 | ---------- | ------ | ------------- | ---------------------------- |
-| `ssid`     | string | `Wokwi-GUEST` | WiFi network name.           |
-| `password` | string | `""`          | WiFi password (empty if open). |
+| `ssid`     | string | `Wokwi-GUEST` | WiFi network name. Leave empty to use the credentials provisioned in NVS on the first USB flash (see [WiFi credentials and OTA security](installation.md#wifi-credentials-and-ota-security)). |
+| `password` | string | `""`          | WiFi password (empty if open). Saved to NVS alongside the SSID on the first flash. |
+
+### `uploadMethod`
+
+| Value   | Default | Description                                                          |
+| ------- | ------- | -------------------------------------------------------------------- |
+| `usb`   | yes     | Flash over USB with `pio run -t upload`.                             |
+| `ota`   |         | Compile in the over-the-air update service (`ARDUINO_OTA`) so later builds can be pushed over WiFi. The first OTA-capable build must still be flashed once over USB. Use a power mode that stays awake (`none` or `lightSleep`). |
+
+This is a build-time setting: the pre-build script `scripts/configure_upload.py`
+reads it and defines the `ARDUINO_OTA` flag when it is `ota`. See
+[Uploading firmware](installation.md#uploading-firmware) for the commands.
 
 ### `data`
 
@@ -143,6 +161,29 @@ Selects what triggers a fetch.
 | Key       | Type   | Default     | Description                                                          |
 | --------- | ------ | ----------- | ------------------------------------------------------------------- |
 | `method`  | string | `none`      | `none` (always-on polling loop), `deepSleep`, or `lightSleep`. Deep sleep is the battery-saving mode for hardware; the default `none` polls the button and works everywhere, including the Wokwi simulator. |
+
+### `ota`
+
+Read only by the OTA build (`uploadMethod = "ota"`); ignored otherwise. After
+each fetch, while WiFi is still up, the device offers one update opportunity and
+then sleeps, so OTA stays compatible with deep sleep. See
+[Uploading firmware](installation.md#uploading-firmware) for the workflow.
+
+| Key         | Type   | Default   | Description                                                              |
+| ----------- | ------ | --------- | ------------------------------------------------------------------------ |
+| `mode`      | string | `window`  | `window` (listen for a pushed update after a fetch), `proxy` (pull a newer build from a manifest after a fetch), or `periodic` (pull on a recurring timer for steady-power devices). |
+| `windowMs`  | number | `60000`   | Window-mode listen duration after each fetch, in milliseconds.           |
+| `proxyUrl`  | string | `""`      | Manifest URL returning `{ "version": ..., "url": ... }`, used by `proxy` and `periodic`. |
+| `password`  | string | `""`      | Optional password the push must supply during the listen window (window mode). |
+| `refreshMs` | number | `3600000` | Periodic-mode poll interval, in milliseconds (default 1 hour).           |
+
+The `window` and `proxy` opportunities are what make OTA battery-friendly: they
+run only in the brief post-fetch window in the `deepSleep` and `lightSleep`
+modes. `periodic` is for steady (wall) power and requires the always-on (`none`)
+power mode - it polls the manifest on its own timer so the firmware stays current
+without waiting for a fetch (see
+[Mode: periodic](installation.md#mode-periodic-steady-power)). In `none` mode the
+push listener also runs continuously, so an update can be pushed at any time.
 
 ### `storage`
 

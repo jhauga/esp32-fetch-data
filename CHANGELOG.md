@@ -3,6 +3,45 @@
 All notable changes to this project are documented in this file. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0] - 2026-06-24
+
+### Added
+
+- Optional over-the-air (OTA) firmware updates, opt-in from `config.json` with
+  `uploadMethod = "ota"`. The pre-build script `scripts/configure_upload.py`
+  reads the key and defines the `ARDUINO_OTA` build flag, compiling in the OTA
+  service in `src/Arduino_ota.h`; the default `usb` build pulls in no OTA code.
+- Battery-friendly OTA that stays compatible with deep sleep: instead of staying
+  awake to listen, the device offers a single update opportunity in the active
+  window right after a fetch, then sleeps. An `ota` config block selects the
+  behavior with `ota.mode`:
+  - `window` - passively listen for a pushed update for `ota.windowMs`
+    (espota / `arduino-cli upload --network`), with an optional `ota.password`.
+  - `proxy` - actively pull from `ota.proxyUrl`: check a small JSON manifest and,
+    when it advertises a newer build, download and flash the firmware image, then
+    reboot. The installed version is tracked in NVS so a build is applied once.
+  - `periodic` - for steady (wall) power: pull from the manifest on a recurring
+    `ota.refreshMs` timer (default 1 hour) rather than only after a fetch, so the
+    firmware stays current automatically. Requires the always-on (`none`) power
+    mode; degrades to per-fetch `proxy` checks in a sleep mode.
+  In the always-on (`none`) power mode the listener instead runs continuously.
+- GitHub Actions workflow (`.github/workflows/build-firmware.yml`) that builds
+  the firmware with PlatformIO and publishes the proxy assets: a build artifact
+  on every push to `main`, and on a version tag a release containing
+  `firmware.bin`, a `manifest.json` (consumed directly by proxy mode via the
+  stable `releases/latest/download/...` URL), and `checksums.txt`.
+- `scripts/update-esp32.sh` to push a released build to a device over WiFi during
+  its OTA window (the manual companion to proxy mode).
+- WiFi credentials are now provisioned once over USB into NVS, so distributed and
+  OTA-pulled binaries carry no network secrets: later builds can ship a
+  `config.json` with an empty `wifi.ssid` and the device uses the stored
+  credentials. The device also records the version and time of the last proxy
+  install in NVS.
+- Installation guide sections for installing PlatformIO Core per OS (with an
+  arduino-cli alternative), a how-to for the USB and OTA upload workflows
+  (including the proxy manifest format), the automated build/release pipeline,
+  and the credential-provisioning security model.
+
 ## [0.1.0] - 2026-06-22
 
 ### Added

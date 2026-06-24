@@ -41,6 +41,18 @@ enum class ActionType { Button, Sensor, Timer, None };
 // Method used to power down between fetch cycles.
 enum class ShutdownMethod { DeepSleep, LightSleep, None };
 
+// How a built-with-OTA device looks for an update.
+//   Window   - passively listen for a pushed update for a short window after a
+//              fetch, then sleep (pair with `arduino-cli upload --network` /
+//              espota). Battery-friendly.
+//   Proxy    - actively pull after a fetch: check a manifest URL for a newer
+//              build and, if one exists, download and flash it. Battery-friendly.
+//   Periodic - actively pull on a recurring timer, independent of fetches. For
+//              steady (wall) power: the firmware refreshes itself so the device
+//              always reflects the latest source. Needs the always-on (`none`)
+//              power mode; in a sleep mode it degrades to per-fetch Proxy checks.
+enum class OtaMode { Window, Proxy, Periodic };
+
 struct AppConfig {
   // --- WiFi ---------------------------------------------------------------
   String wifiSsid = "Wokwi-GUEST";
@@ -108,6 +120,16 @@ struct AppConfig {
 
   // --- Storage / offline fallback ----------------------------------------
   uint32_t connectionErrorMs = 5000UL;  // "Connection Error" notice duration
+
+  // --- OTA updates --------------------------------------------------------
+  // Used only when the firmware is built with uploadMethod = "ota"
+  // (ARDUINO_OTA). After each fetch the device opens a brief update window so it
+  // can keep deep-sleeping between updates instead of staying awake to listen.
+  OtaMode otaMode = OtaMode::Window;
+  uint32_t otaWindowMs = 60000UL;  // window-mode listen duration after a fetch
+  String otaProxyUrl = "";         // proxy/periodic manifest URL (newer-build check)
+  String otaPassword = "";         // optional auth for the listen window
+  uint32_t otaRefreshMs = 3600000UL;  // periodic-mode poll interval (steady power)
 };
 
 namespace config_detail {
@@ -127,6 +149,14 @@ inline ShutdownMethod parseShutdown(const String& value) {
   if (v == "lightsleep" || v == "light_sleep") return ShutdownMethod::LightSleep;
   if (v == "none") return ShutdownMethod::None;
   return ShutdownMethod::DeepSleep;
+}
+
+inline OtaMode parseOtaMode(const String& value) {
+  String v = value;
+  v.toLowerCase();
+  if (v == "proxy") return OtaMode::Proxy;
+  if (v == "periodic") return OtaMode::Periodic;
+  return OtaMode::Window;
 }
 
 // Accept both numeric (39) and hex-string ("0x27") I2C addresses.
@@ -226,6 +256,16 @@ inline bool loadConfig(AppConfig& cfg, const char* path = "/config.json") {
   // Storage
   JsonObjectConst storage = doc["storage"];
   cfg.connectionErrorMs = storage["connectionErrorMs"] | cfg.connectionErrorMs;
+
+  // OTA (consumed only by the ARDUINO_OTA build; harmless to parse otherwise).
+  JsonObjectConst ota = doc["ota"];
+  if (!ota["mode"].isNull()) {
+    cfg.otaMode = config_detail::parseOtaMode(ota["mode"].as<String>());
+  }
+  cfg.otaWindowMs = ota["windowMs"] | cfg.otaWindowMs;
+  cfg.otaProxyUrl = ota["proxyUrl"] | cfg.otaProxyUrl;
+  cfg.otaPassword = ota["password"] | cfg.otaPassword;
+  cfg.otaRefreshMs = ota["refreshMs"] | cfg.otaRefreshMs;
 
   Serial.println("Loaded configuration from config.json.");
   return true;

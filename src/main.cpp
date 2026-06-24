@@ -24,6 +24,7 @@
 #include <driver/rtc_io.h>
 #include <esp_sleep.h>
 
+#include "Arduino_ota.h"
 #include "Config.h"
 #include "Display.h"
 #include "Storage.h"
@@ -179,9 +180,22 @@ void runFetchCycle() {
 
 // An action fired: fetch and show the result, hold it on screen for the
 // configured window, then turn the display off so it idles dark again.
+//
+// In the sleep modes this is also where the battery-friendly OTA opportunity
+// runs: WiFi is still up from the fetch, so the device offers an update (a brief
+// listen window or a proxy pull) before powering down, then sleeps as usual.
+// When OTA is not built in, ota::run is a no-op and the cycle is unchanged.
 void runActionCycle() {
   runFetchCycle();
-  delay(g_config.displayTimeMs);
+
+  bool otaHeldDisplay = false;
+  if (g_config.shutdownMethod != ShutdownMethod::None) {
+    otaHeldDisplay = ota::run(g_config);
+  }
+  if (!otaHeldDisplay) {
+    delay(g_config.displayTimeMs);
+  }
+
   displayOff();
 }
 
@@ -280,6 +294,22 @@ void setup() {
 
   loadConfig(g_config);
 
+  // WiFi credential provisioning. The first USB flash ships a config.json with
+  // the real network credentials, which are saved to NVS here. Later (OTA)
+  // firmware can then leave config.json's credentials empty -- the image and any
+  // redistributed config carry no secrets -- and the device falls back to the
+  // credentials stored on-device. NVS survives OTA, which only rewrites the app
+  // partition. See storage::saveWifiCredentials for the no-empty/no-churn rules.
+  if (!g_config.wifiSsid.isEmpty()) {
+    storage::saveWifiCredentials(g_config.wifiSsid, g_config.wifiPassword);
+  } else {
+    g_config.wifiSsid = storage::loadWifiSsid();
+    g_config.wifiPassword = storage::loadWifiPassword();
+    if (!g_config.wifiSsid.isEmpty()) {
+      Serial.println("Using WiFi credentials provisioned in NVS.");
+    }
+  }
+
   g_display = createDisplay(g_config);
   g_display->begin();
 
@@ -317,10 +347,23 @@ void setup() {
     enterDeepSleep();  // does not return
   }
   // ShutdownMethod::None / LightSleep fall through to loop().
+
+  // Always-on (`none`) mode keeps a continuous OTA listener so updates are
+  // available any time, not just in the post-fetch window. The sleep modes use
+  // that window instead (handled in runActionCycle) and skip this. OTA needs an
+  // active WiFi link, so connect first, then idle dark while it listens.
+  if (ota::enabled() && g_config.shutdownMethod == ShutdownMethod::None &&
+      ensureWifi()) {
+    ota::begin(g_config);
+    displayOff();
+  }
 }
 
 void loop() {
+  ota::handle();  // services OTA when enabled; an inline no-op otherwise
+
   if (g_config.shutdownMethod == ShutdownMethod::None) {
+    ota::poll(g_config);  // periodic auto-refresh on steady power (periodic mode)
     runPollingLoop();
     return;
   }

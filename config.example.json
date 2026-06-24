@@ -3,6 +3,7 @@
     "ssid": "YourNetwork",
     "password": "your-password"
   },
+  "uploadMethod": "usb",
   "data": {
     "url": "https://example.com/data.txt",
     "httpTimeoutMs": 10000
@@ -28,6 +29,13 @@
     "shutdown": {
       "method": "deepSleep"
     }
+  },
+  "ota": {
+    "mode": "window",
+    "windowMs": 60000,
+    "proxyUrl": "",
+    "password": "",
+    "refreshMs": 3600000
   },
   "storage": {
     "connectionErrorMs": 5000

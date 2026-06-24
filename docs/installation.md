@@ -17,6 +17,74 @@ GPIO 33 is RTC-capable, which is required for waking from deep sleep on a button
 press. To use a different button pin, pick another RTC-capable GPIO and set it in
 `config.json`.
 
+## Installing PlatformIO Core (`pio`)
+
+PlatformIO Core provides the `pio` command used throughout this guide. It needs
+Python 3.6+ and pip. Install for your OS, then confirm with `pio --version`.
+
+### Windows
+
+```powershell
+python -m pip install --upgrade platformio
+```
+
+If `python` is missing, install it with `winget install Python.Python.3` or from
+[python.org](https://www.python.org/downloads/) (check "Add Python to PATH").
+
+### macOS
+
+```bash
+python3 -m pip install --upgrade platformio
+```
+
+Homebrew users can run `brew install platformio` instead.
+
+### Linux
+
+```bash
+python3 -m pip install --upgrade platformio
+```
+
+On Debian/Ubuntu, install pip first with `sudo apt install python3-pip`. To flash
+over USB without root, add yourself to the serial group and re-login:
+
+```bash
+sudo usermod -aG dialout $USER
+```
+
+<details>
+<summary>Alternative: arduino-cli</summary>
+
+You can build and flash with
+[arduino-cli](https://arduino.github.io/arduino-cli/) instead of PlatformIO.
+
+Install the CLI:
+
+- **Windows:** `winget install ArduinoSA.CLI`
+- **macOS:** `brew install arduino-cli`
+- **Linux:** `curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh`
+
+Add the ESP32 core and the project's libraries:
+
+```bash
+arduino-cli config init
+arduino-cli config add board_manager.additional_urls \
+  https://espressif.github.io/arduino-esp32/package_esp32_index.json
+arduino-cli core update-index
+arduino-cli core install esp32:esp32
+arduino-cli lib install "ArduinoJson" "LiquidCrystal_I2C"
+```
+
+arduino-cli compiles the sketch form described under **Option B** (an
+`esp32-fetch-data.ino` with the `.h` files beside it). The pre-build scripts that
+auto-select the display driver and the OTA flag are PlatformIO-only, so pass any
+build flag yourself, for example
+`--build-property "build.extra_flags=-DARDUINO_OTA"`. PlatformIO remains the
+recommended path because it resolves `platformio.ini` and runs those scripts for
+you.
+
+</details>
+
 ## Option A: PlatformIO
 
 PlatformIO resolves the library dependencies automatically from `platformio.ini`.
@@ -56,6 +124,159 @@ filesystem image from the `data/` folder and writes it to the LittleFS partition
 
 Without a `config.json` on the filesystem, the firmware runs on its built-in
 defaults - useful for a first smoke test.
+
+## Uploading firmware
+
+The `uploadMethod` key in `config.json` selects how new firmware reaches the
+device.
+
+### USB (`"uploadMethod": "usb"`)
+
+The default. Connect the board over USB and run:
+
+```bash
+pio run -t upload      # flash the firmware
+pio run -t uploadfs    # flash config.json to LittleFS
+pio device monitor     # watch serial output
+```
+
+### Over the air (`"uploadMethod": "ota"`)
+
+This project is designed mainly for battery-powered builds, so OTA stays
+battery-friendly: a deep-sleeping device cannot listen continuously, so instead
+the firmware offers one update opportunity in the brief active window right after
+a fetch (WiFi is already connected), then sleeps again. The `ota.mode` key picks
+how that window behaves (`window` or `proxy`).
+
+It also handles a steady (wall) power source: with constant power there is no
+battery to conserve, so the `periodic` mode is more convenient - the device
+refreshes itself on a timer and the fetched data always reflects the latest
+source code, with no one having to push.
+
+The first OTA-capable build must always be flashed once over USB so the device
+has OTA firmware to start from:
+
+```bash
+pio run -t upload      # flash the OTA-enabled firmware once
+pio run -t uploadfs    # flash config.json (uploadMethod = "ota")
+```
+
+**When to use OTA.** It is most useful for initial setup, for debugging an IoT
+device before it is deployed to its final location, and - via proxy mode - for
+fleets that need frequent unattended updates.
+
+#### Mode: `window` (push an update)
+
+Listen for a pushed update for `ota.windowMs` after each fetch. Good for hands-on
+work: trigger a fetch, then immediately upload.
+
+1. Set `ota.mode` to `window` (and optionally `ota.password`).
+2. Trigger a fetch (press the button), which opens the listen window.
+3. Within the window, push the new build:
+
+```bash
+# PlatformIO (espota)
+pio run -t upload --upload-port esp32-fetch-data.local
+
+# or arduino-cli over the network (use the device IP from the serial log)
+arduino-cli upload --port 10.13.37.2:3232 --network ./
+```
+
+Confirm the device is reachable with `ping esp32-fetch-data.local`. In the
+always-on (`none`) power mode the listener runs continuously, so you can push at
+any time without waiting for the window.
+
+#### Mode: `proxy` (device pulls a newer build)
+
+The device checks a manifest URL after each fetch and updates itself when a newer
+build is published, so no one has to be present to push. Set `ota.mode` to
+`proxy` and `ota.proxyUrl` to the manifest URL.
+
+The manifest is small JSON describing the latest build:
+
+```json
+{
+  "version": "2026-06-24T15:00:00Z",
+  "url": "https://example.com/firmware/firmware.bin"
+}
+```
+
+- `version` - compared as a string against the last installed version, so use an
+  ISO-8601 UTC timestamp (or any value that sorts newest-last). The device
+  updates only when the manifest version sorts after the stored one.
+- `url` - direct link to the compiled image (`.pio/build/esp32dev/firmware.bin`).
+
+The included [GitHub Actions workflow](#automated-builds--releases-github-actions)
+produces `firmware.bin` and `manifest.json` for you, so a typical proxy URL is:
+
+```text
+https://github.com/<owner>/<repo>/releases/latest/download/manifest.json
+```
+
+> The ESP32 flashes a **raw `firmware.bin`** image and does not unzip archives
+> on-device. If your release process produces a `.zip`, unzip it on the proxy and
+> publish the contained `firmware.bin` (and point `url` at it). HTTPS proxies
+> such as GitHub work out of the box; the client does not pin a certificate.
+
+#### Mode: `periodic` (steady power, always current)
+
+For a device on constant power (a wall adapter), use `periodic`. It pulls from
+the same manifest as `proxy`, but on a recurring timer instead of only after a
+fetch, so the firmware tracks the latest source automatically and the fetched
+data always reflects the current code - the most convenient option when battery
+life is not a concern.
+
+1. Set `power.shutdown.method` to `none` (always-on; `periodic` needs the device
+   awake to poll).
+2. Set `ota.mode` to `periodic`, `ota.proxyUrl` to the manifest URL, and
+   `ota.refreshMs` to the poll interval (default 1 hour).
+
+The device checks once at power-up and then every `ota.refreshMs`. The push
+listener still runs continuously in this mode, so you can also push a build at
+any time. In a sleep power mode `periodic` degrades to a per-fetch `proxy` check,
+but steady power is what it is meant for.
+
+### Automated builds & releases (GitHub Actions)
+
+`.github/workflows/build-firmware.yml` builds the firmware with PlatformIO and
+publishes the proxy assets, so updates flow from a commit to the device with no
+local steps:
+
+- **Every push to `main`** uploads a downloadable build artifact (`firmware`).
+- **Pushing a version tag** also creates a GitHub Release containing
+  `firmware.bin`, `manifest.json`, and `checksums.txt`:
+
+  ```bash
+  git tag v1.0.0
+  git push origin v1.0.0
+  ```
+
+The workflow forces the OTA build flag, so released images are always
+over-the-air capable, and writes `manifest.json` with the build's ISO-8601
+timestamp as `version` and the release `firmware.bin` as `url`. Because the
+`releases/latest/download/...` URLs are stable across versions, a device whose
+`ota.proxyUrl` points at the latest `manifest.json` always converges on the
+newest release on its next fetch. For a hands-on push instead, run
+[`scripts/update-esp32.sh`](../scripts/update-esp32.sh) during the device's OTA
+window.
+
+### WiFi credentials and OTA security
+
+Released binaries must not carry network secrets. The firmware keeps credentials
+out of the image by provisioning them once, over USB, into the device's NVS flash
+(which survives OTA, since an update rewrites only the app partition):
+
+1. **First USB flash:** ship a `config.json` with your real `wifi.ssid` /
+   `wifi.password`. On boot the device copies them into NVS.
+2. **Later OTA builds:** leave `wifi.ssid` empty in any redistributed
+   `config.json`. The device falls back to the credentials stored in NVS, so the
+   public `firmware.bin` and config carry no secrets.
+
+The device stores only three things in NVS: the last fetched value (one slot,
+overwritten each fetch), the version and time of the last proxy install, and the
+WiFi credentials. NVS is not encrypted by default; enable
+[NVS encryption](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/storage/nvs_encryption.html)
+for production hardware if the credentials must be protected at rest.
 
 ## Simulation (Wokwi)
 
