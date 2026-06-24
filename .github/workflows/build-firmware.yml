@@ -1,0 +1,79 @@
+# Build the OTA firmware and publish the assets the device's proxy update mode
+# consumes. Every push to main produces a downloadable build artifact; pushing a
+# version tag (v*) also creates a GitHub Release containing:
+#
+#   firmware.bin   raw image the device flashes over the air
+#   manifest.json  { "version": <ISO-8601 build time>, "url": <latest .bin> }
+#   checksums.txt  SHA-256 of the above, for integrity verification
+#
+# Point a device at the proxy by setting ota.proxyUrl in config.json to:
+#   https://github.com/<owner>/<repo>/releases/latest/download/manifest.json
+# The "latest/download" URLs are stable across versions, so the device always
+# sees the newest release. The firmware carries no WiFi credentials: those are
+# provisioned to NVS on the first USB flash (see docs/installation.md).
+name: Build & Release Firmware
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write # required to create releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+
+      - name: Install PlatformIO Core
+        run: pip install --upgrade platformio
+
+      # Force the OTA build flag here so released images are always
+      # over-the-air capable, regardless of the committed uploadMethod.
+      - name: Build firmware
+        env:
+          PLATFORMIO_BUILD_FLAGS: -DARDUINO_OTA
+        run: pio run -e esp32dev
+
+      - name: Stage release assets
+        run: |
+          mkdir -p dist
+          cp .pio/build/esp32dev/firmware.bin dist/firmware.bin
+          stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          bin_url="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/firmware.bin"
+          printf '{\n  "version": "%s",\n  "url": "%s"\n}\n' "$stamp" "$bin_url" > dist/manifest.json
+          ( cd dist && sha256sum firmware.bin manifest.json > checksums.txt )
+          echo "Built firmware (version $stamp):"
+          cat dist/manifest.json
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: dist/
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/firmware.bin
+            dist/manifest.json
+            dist/checksums.txt
