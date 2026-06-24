@@ -149,9 +149,9 @@ Selects what triggers a fetch.
 | Key                  | Type    | Default  | Description                                                       |
 | -------------------- | ------- | -------- | ---------------------------------------------------------------- |
 | `type`               | string  | `button` | One of `button`, `sensor`, `timer`, `none`.                      |
-| `button.pin`         | number  | `33`     | Button GPIO. Must be RTC-capable to wake from deep sleep.        |
+| `button.pin`         | number  | `33`     | Button GPIO. Any valid input pin works; an RTC-capable pin is needed to wake from deep sleep (a non-RTC pin falls back to light sleep automatically). |
 | `button.activeLow`   | boolean | `true`   | `true` when the button reads LOW while pressed.                  |
-| `sensor.pin`         | number  | `27`     | Presence-sensor GPIO (RTC-capable).                             |
+| `sensor.pin`         | number  | `27`     | Presence-sensor GPIO. RTC-capable to wake from deep sleep; otherwise light sleep is used. |
 | `sensor.holdMs`      | number  | `1500`   | Dwell time before a sensor reading counts as a trigger.          |
 | `timer.intervalMs`   | number  | `900000` | Refresh interval for `timer`/`none` actions (default 15 min).    |
 | `refreshOnAction`    | boolean | `true`   | Re-fetch on each trigger rather than re-showing the cached value. |
@@ -191,9 +191,19 @@ push listener also runs continuously, so an update can be pushed at any time.
 | ------------------ | ------ | ------- | ------------------------------------------------------------ |
 | `connectionErrorMs`| number | `5000`  | How long the `Connection Error` notice shows before the cache. |
 
-## RTC-capable GPIOs
+## RTC-capable GPIOs and pin selection
 
-Deep-sleep wake on a button or sensor uses the `ext0` source, which is limited to
-RTC-capable pins. On a standard ESP32 these include GPIO 0, 2, 4, 12–15, 25, 26,
-27, 32, 33, 34, 35, 36, and 39. Choose `button.pin` / `sensor.pin` from this set
-when using deep sleep.
+Any valid input GPIO can be used for `button.pin` / `sensor.pin`; the firmware
+adapts the sleep behavior to the pin so a press always wakes the device:
+
+- **`none` (always-on polling)** and **`lightSleep`** wake from any digital GPIO,
+  so any valid pin works.
+- **`deepSleep`** wakes a button/sensor through the `ext0` source, which is
+  limited to RTC-capable pins. On a standard ESP32 these are GPIO 0, 2, 4, 12–15,
+  25, 26, 27, 32, 33, 34, 35, 36, and 39.
+
+If `deepSleep` is selected with a non-RTC pin (for example GPIO 5), the device
+cannot wake from deep sleep on that pin, so the firmware logs a notice and
+transparently runs **light sleep** instead - the button still works, just without
+the deepest power state. For the lowest power consumption, choose an RTC-capable
+pin from the list above.

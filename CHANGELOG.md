@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.1] - 2026-06-24
+
+### Fixed
+
+- A button or sensor on a non-RTC-capable GPIO (for example GPIO 5) no longer
+  fails to wake the device. Deep-sleep `ext0` wake only works on RTC-capable
+  pins, so a non-RTC trigger pin would sleep forever. The firmware now detects
+  this and transparently uses light sleep (which wakes from any GPIO) for such
+  pins, and light-sleep wake now uses GPIO level wake instead of `ext0`. Any
+  valid input pin works; RTC pins still get full deep sleep for the lowest power.
+
 ## [0.2.0] - 2026-06-24
 
 ### Added

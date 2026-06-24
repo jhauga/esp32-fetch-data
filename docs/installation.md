@@ -14,8 +14,11 @@ pushbutton. It can be built with PlatformIO (recommended) or the Arduino IDE.
 | Button      | GPIO 33   | One side to the pin, the other to GND (active-low) |
 
 GPIO 33 is RTC-capable, which is required for waking from deep sleep on a button
-press. To use a different button pin, pick another RTC-capable GPIO and set it in
-`config.json`.
+press. You can set any valid input pin in `config.json`; a non-RTC pin (such as
+GPIO 5) still works, but the firmware falls back to light sleep for it because it
+cannot wake from deep sleep. For the lowest power, keep the button on an
+RTC-capable GPIO (see
+[RTC-capable GPIOs](configuration.md#rtc-capable-gpios-and-pin-selection)).
 
 ## Installing PlatformIO Core (`pio`)
 

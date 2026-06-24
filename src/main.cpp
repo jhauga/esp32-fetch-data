@@ -21,6 +21,7 @@
 #include <Arduino.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
+#include <driver/gpio.h>
 #include <driver/rtc_io.h>
 #include <esp_sleep.h>
 
@@ -199,8 +200,35 @@ void runActionCycle() {
   displayOff();
 }
 
+// True when the configured trigger waits on a GPIO (button/sensor). Timer/None
+// wake on the RTC timer and need no pin.
+bool actionUsesWakePin() {
+  return g_config.actionType == ActionType::Button ||
+         g_config.actionType == ActionType::Sensor;
+}
+
+// The GPIO the active trigger waits on (button or sensor pin).
+int actionWakePin() {
+  return g_config.actionType == ActionType::Sensor ? g_config.sensorPin
+                                                   : g_config.buttonPin;
+}
+
+// Level on the wake pin that counts as "fired", for light-sleep GPIO wake. The
+// sensor is treated as active-high; the button follows its configured polarity.
+gpio_int_type_t actionWakeLevel() {
+  if (g_config.actionType == ActionType::Sensor) {
+    return GPIO_INTR_HIGH_LEVEL;
+  }
+  return g_config.buttonActiveLow ? GPIO_INTR_LOW_LEVEL : GPIO_INTR_HIGH_LEVEL;
+}
+
 // Configures the wake source for the configured action and enters deep sleep.
 // The display is turned off first so the device sleeps showing nothing.
+//
+// Deep sleep can only wake from a GPIO via ext0, which is limited to RTC-capable
+// pins. The caller guarantees the wake pin is RTC-capable before selecting deep
+// sleep (see resolveShutdownMethod); a non-RTC pin is routed to light sleep
+// instead, which can wake from any GPIO.
 void enterDeepSleep() {
   displayOff();
 
@@ -286,6 +314,26 @@ void runPollingLoop() {
   delay(20);
 }
 
+// Returns the shutdown method the device can actually honor with the configured
+// trigger pin. Deep sleep wakes from a button/sensor only through ext0, which is
+// limited to RTC-capable GPIOs; if the configured pin is not RTC-capable, deep
+// sleep would never wake on a press. In that case we transparently fall back to
+// light sleep, which can wake from any GPIO -- so any valid pin keeps working
+// (just without the deepest power state). RTC pins and timer/none triggers are
+// returned unchanged.
+ShutdownMethod resolveShutdownMethod() {
+  if (g_config.shutdownMethod == ShutdownMethod::DeepSleep &&
+      actionUsesWakePin() &&
+      !rtc_gpio_is_valid_gpio(static_cast<gpio_num_t>(actionWakePin()))) {
+    Serial.printf(
+        "GPIO %d is not RTC-capable, so deep sleep cannot wake on it; "
+        "using light sleep instead (wakes from any GPIO).\n",
+        actionWakePin());
+    return ShutdownMethod::LightSleep;
+  }
+  return g_config.shutdownMethod;
+}
+
 }  // namespace
 
 void setup() {
@@ -320,6 +368,11 @@ void setup() {
   } else if (g_config.actionType == ActionType::Sensor) {
     pinMode(g_config.sensorPin, INPUT);
   }
+
+  // Pick the shutdown method the configured trigger pin can actually support, so
+  // a non-RTC button/sensor pin still wakes the device (via light sleep) instead
+  // of sleeping forever. Everything below reads g_config.shutdownMethod.
+  g_config.shutdownMethod = resolveShutdownMethod();
 
   const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
   Serial.printf("Boot (wake cause: %d).\n", static_cast<int>(wakeCause));
@@ -376,12 +429,12 @@ void loop() {
       esp_sleep_enable_timer_wakeup(
           static_cast<uint64_t>(g_config.timerIntervalMs) * 1000ULL);
     } else {
-      const int level = g_config.buttonActiveLow ? 0 : 1;
-      esp_sleep_enable_ext0_wakeup(
-          static_cast<gpio_num_t>(g_config.actionType == ActionType::Sensor
-                                      ? g_config.sensorPin
-                                      : g_config.buttonPin),
-          g_config.actionType == ActionType::Sensor ? 1 : level);
+      // Light sleep can wake from a GPIO level on any digital pin (not just the
+      // RTC-capable ones ext0 requires), so the button/sensor works on whatever
+      // valid pin config.json names.
+      const int wakePin = actionWakePin();
+      gpio_wakeup_enable(static_cast<gpio_num_t>(wakePin), actionWakeLevel());
+      esp_sleep_enable_gpio_wakeup();
     }
 
     displayOff();  // dark while sleeping

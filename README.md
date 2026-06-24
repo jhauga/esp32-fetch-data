@@ -46,9 +46,11 @@ The reference circuit uses:
 | Button      | GPIO 33   | RTC-capable pin (required to wake from deep sleep) |
 
 > **Why GPIO 33 for the button?** Deep-sleep wake-on-press uses the `ext0`
-> source, which only works on RTC-capable GPIOs. Pins such as GPIO 5 cannot wake
-> the chip, so the button defaults to an RTC pin. You can change it in
-> `config.json` to any other RTC-capable GPIO.
+> source, which only works on RTC-capable GPIOs, so the button defaults to an RTC
+> pin to get the deepest power saving. You can set any valid input GPIO in
+> `config.json`: a non-RTC pin such as GPIO 5 still works, but because it cannot
+> wake from deep sleep the firmware automatically uses light sleep for it instead
+> (it wakes from any GPIO). For the lowest power, keep the button on an RTC pin.
 
 ## Repository layout
 
