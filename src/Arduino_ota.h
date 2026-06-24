@@ -13,7 +13,7 @@
 // modes pick what happens in that window (config: `ota.mode`):
 //
 //   "window" - passively listen for a pushed update for `ota.windowMs`, then
-//              sleep. Push with espota / `arduino-cli upload --network`.
+//              sleep. Push with espota (or scripts/update-esp32.sh) by device IP.
 //   "proxy"  - actively pull: GET a manifest from `ota.proxyUrl`, and if it
 //              advertises a newer build, download and flash it, then reboot.
 //              No waiting window, so the device is awake for the least time.
@@ -63,6 +63,10 @@ inline void ensureService(const AppConfig& cfg) {
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf("OTA: error [%u].\n", static_cast<unsigned>(error));
   });
+  // Keep the radio awake while listening. With the default WiFi modem sleep the
+  // ESP32 naps between beacons and drops espota's UDP invitation, which shows up
+  // on the host as "No response from device" even though the IP is reachable.
+  WiFi.setSleep(false);
   ArduinoOTA.begin();
   started = true;
   Serial.printf("OTA ready: %s.local (IP %s).\n", kHostname,
@@ -76,6 +80,9 @@ inline void offerWindow(const AppConfig& cfg) {
     return;
   }
   ensureService(cfg);
+  // Re-assert no-sleep each window: reconnecting WiFi after a light/deep sleep
+  // can restore the default modem sleep, which would again drop OTA invitations.
+  WiFi.setSleep(false);
   Serial.printf("OTA window open for %lu ms.\n",
                 static_cast<unsigned long>(cfg.otaWindowMs));
   const unsigned long start = millis();

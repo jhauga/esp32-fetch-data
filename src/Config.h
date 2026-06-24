@@ -43,8 +43,8 @@ enum class ShutdownMethod { DeepSleep, LightSleep, None };
 
 // How a built-with-OTA device looks for an update.
 //   Window   - passively listen for a pushed update for a short window after a
-//              fetch, then sleep (pair with `arduino-cli upload --network` /
-//              espota). Battery-friendly.
+//              fetch, then sleep (push with espota / scripts/update-esp32.sh).
+//              Battery-friendly.
 //   Proxy    - actively pull after a fetch: check a manifest URL for a newer
 //              build and, if one exists, download and flash it. Battery-friendly.
 //   Periodic - actively pull on a recurring timer, independent of fetches. For

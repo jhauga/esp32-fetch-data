@@ -3,6 +3,21 @@
 All notable changes to this project are documented in this file. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.2] - 2026-06-24
+
+### Fixed
+
+- OTA pushes (espota / `pio run -t upload --upload-port <ip>`) no longer fail with
+  "No response from device" while the listener is up. The ESP32's default WiFi
+  modem sleep dropped the incoming OTA invitation; the firmware now disables WiFi
+  sleep whenever the OTA listener is active, so the upload handshake completes.
+- Corrected the OTA push documentation: the previous `arduino-cli upload --network`
+  example was not valid (it only printed help). The guide now uses `espota.py` /
+  `scripts/update-esp32.sh` / PlatformIO, targets the device IP rather than the
+  `.local` mDNS name (which needs a resolver many Linux/container hosts lack), and
+  explains that the device only answers while its OTA window is open (or
+  continuously in `none` power mode).
+
 ## [0.2.1] - 2026-06-24
 
 ### Fixed

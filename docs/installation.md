@@ -171,23 +171,40 @@ fleets that need frequent unattended updates.
 #### Mode: `window` (push an update)
 
 Listen for a pushed update for `ota.windowMs` after each fetch. Good for hands-on
-work: trigger a fetch, then immediately upload.
+work: trigger a fetch, then push the build before the window closes.
 
 1. Set `ota.mode` to `window` (and optionally `ota.password`).
-2. Trigger a fetch (press the button), which opens the listen window.
-3. Within the window, push the new build:
+2. Note the device's IP from the serial log (`OTA ready: ... (IP 192.x.y.z)`).
+   Use the IP, not `esp32-fetch-data.local`: the `.local` name needs an mDNS
+   resolver (avahi/Bonjour), which is often missing on Linux and in containers.
+3. Trigger a fetch (press the button), which opens the listen window.
+4. Within the window, push the new build with one of:
 
 ```bash
-# PlatformIO (espota)
-pio run -t upload --upload-port esp32-fetch-data.local
+# Helper script (downloads a release build and pushes it) - simplest
+./scripts/update-esp32.sh 192.x.y.z
 
-# or arduino-cli over the network (use the device IP from the serial log)
-arduino-cli upload --port 10.13.37.2:3232 --network ./
+# espota.py directly (bundled with the ESP32 Arduino core)
+python3 "$(find ~/.platformio/packages -name espota.py | head -1)" \
+  -i 192.x.y.z -p 3232 -f .pio/build/esp32dev/firmware.bin
+
+# PlatformIO: it auto-switches upload_protocol to espota for an IP/host port
+pio run -t upload --upload-port 192.x.y.z
 ```
 
-Confirm the device is reachable with `ping esp32-fetch-data.local`. In the
-always-on (`none`) power mode the listener runs continuously, so you can push at
-any time without waiting for the window.
+> **"No response from device" / "never found device"?** The device only answers
+> while its OTA listener is up. In a sleep power mode that is just the
+> `ota.windowMs` window after a fetch, so press the button first, then push
+> within the window (raise `ota.windowMs` if you need more time). For relaxed
+> hands-on updates, set `power.shutdown.method` to `none`: the listener then runs
+> continuously and you can push at any time. Always target the device IP, and
+> make sure your machine is on the same subnet. The firmware keeps its WiFi radio
+> awake while listening so the upload handshake is not missed.
+
+`pio run -t upload --upload-port <ip>` prints a warning suggesting
+`upload_protocol = espota` in `platformio.ini`; it is only a hint (PlatformIO
+already switches automatically) and is safe to ignore. Do not set that key in the
+shared `[env:esp32dev]`, or normal USB uploads would break.
 
 #### Mode: `proxy` (device pulls a newer build)
 

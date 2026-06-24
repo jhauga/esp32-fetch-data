@@ -1,6 +1,6 @@
 # [esp32-fetch-data](https://jhauga.github.io/esp32-fetch-data/)
 
-- `ctrl + click` to see the project on [wokwi.com](https://wokwi.com/projects/467393527818771457) at version `0.1.0`
+- `ctrl + click` to see the project on [wokwi.com](https://wokwi.com/projects/467393527818771457) at version `0.2.2`
 
 Firmware for an ESP32 that fetches a text data file over WiFi and prints it to a
 character display. It is built for low-power, battery-friendly operation and is
