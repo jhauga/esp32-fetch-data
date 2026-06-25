@@ -5,6 +5,22 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.2.2] - 2026-06-24
 
+### Changed
+
+- Reworked the OTA build pipeline to a switch-gated workflow. A run builds only
+  when a `firmware/on` switch file is set, then commits `firmware.bin` and a
+  `manifest.json` under `firmware/` (and clears the switch), so a device pulls the
+  image from a stable raw URL instead of a GitHub Release. This replaces the prior
+  release/artifact approach, whose `releases/latest` URL did not exist until a
+  tag was pushed and whose build artifact was a non-downloadable zip.
+- The `update-esp32.sh` helper now pushes the local build by default, with a
+  `--published` option to fetch the committed firmware image.
+
+### Documentation
+
+- Marked the pull-based OTA modes (`proxy`, `periodic`) and their build pipeline
+  as a work in progress; the `window` push path remains the supported method.
+
 ### Fixed
 
 - OTA pushes (espota / `pio run -t upload --upload-port <ip>`) no longer fail with

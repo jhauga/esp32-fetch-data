@@ -98,8 +98,9 @@ network and data URL:
 
 To update over WiFi instead of USB, set `"uploadMethod": "ota"` in `config.json`.
 OTA stays battery-friendly and deep-sleep compatible: the device offers one
-update opportunity in the brief window after each fetch (push a build, or let it
-pull a newer one from a proxy), then sleeps. See
+update opportunity in the brief window after each fetch, then sleeps. Pushing a
+build (`window` mode) is supported; the pull-based `proxy` / `periodic` modes and
+their build pipeline are a work in progress. See
 [Uploading firmware](docs/installation.md#uploading-firmware).
 
 See [docs/installation.md](docs/installation.md) for the Arduino IDE workflow and

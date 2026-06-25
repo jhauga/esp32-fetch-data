@@ -156,6 +156,10 @@ battery to conserve, so the `periodic` mode is more convenient - the device
 refreshes itself on a timer and the fetched data always reflects the latest
 source code, with no one having to push.
 
+> **Status:** the `window` push path is supported and reliable. The pull-based
+> modes (`proxy`, `periodic`) and the build pipeline that feeds them are a work in
+> progress - usable, but still being finalized.
+
 The first OTA-capable build must always be flashed once over USB so the device
 has OTA firmware to start from:
 
@@ -208,6 +212,10 @@ shared `[env:esp32dev]`, or normal USB uploads would break.
 
 #### Mode: `proxy` (device pulls a newer build)
 
+> **Work in progress.** The pull-based pipeline (this mode and `periodic`, plus
+> the build workflow below) is still being finalized. The `window` push path
+> above is the supported way to update today.
+
 The device checks a manifest URL after each fetch and updates itself when a newer
 build is published, so no one has to be present to push. Set `ota.mode` to
 `proxy` and `ota.proxyUrl` to the manifest URL.
@@ -216,27 +224,29 @@ The manifest is small JSON describing the latest build:
 
 ```json
 {
-  "version": "2026-06-24T15:00:00Z",
-  "url": "https://example.com/firmware/firmware.bin"
+  "version": "2026-01-01T00:00:00Z",
+  "url": "https://raw.githubusercontent.com/<owner>/<repo>/main/firmware/firmware.bin"
 }
 ```
 
 - `version` - compared as a string against the last installed version, so use an
   ISO-8601 UTC timestamp (or any value that sorts newest-last). The device
   updates only when the manifest version sorts after the stored one.
-- `url` - direct link to the compiled image (`.pio/build/esp32dev/firmware.bin`).
+- `url` - direct link to the raw `firmware.bin` image.
 
-The included [GitHub Actions workflow](#automated-builds--releases-github-actions)
-produces `firmware.bin` and `manifest.json` for you, so a typical proxy URL is:
+The included [build workflow](#automated-firmware-build-github-actions-wip)
+produces `firmware.bin` and `manifest.json` and commits them under `firmware/`,
+so a typical proxy URL points at the committed manifest:
 
 ```text
-https://github.com/<owner>/<repo>/releases/latest/download/manifest.json
+https://raw.githubusercontent.com/<owner>/<repo>/main/firmware/manifest.json
 ```
 
 > The ESP32 flashes a **raw `firmware.bin`** image and does not unzip archives
-> on-device. If your release process produces a `.zip`, unzip it on the proxy and
-> publish the contained `firmware.bin` (and point `url` at it). HTTPS proxies
-> such as GitHub work out of the box; the client does not pin a certificate.
+> on-device, so the `url` must point at the `.bin` itself, not a `.zip` or an
+> Actions artifact (which is a zip and needs authentication). HTTPS hosts such as
+> raw.githubusercontent.com work out of the box; the client does not pin a
+> certificate.
 
 #### Mode: `periodic` (steady power, always current)
 
@@ -256,33 +266,39 @@ listener still runs continuously in this mode, so you can also push a build at
 any time. In a sleep power mode `periodic` degrades to a per-fetch `proxy` check,
 but steady power is what it is meant for.
 
-### Automated builds & releases (GitHub Actions)
+### Automated firmware build (GitHub Actions, WIP)
 
-`.github/workflows/build-firmware.yml` builds the firmware with PlatformIO and
-publishes the proxy assets, so updates flow from a commit to the device with no
-local steps:
+> **Work in progress.** This pipeline is still being finalized; expect rough
+> edges. The `window` push path is the reliable update method for now.
 
-- **Every push to `main`** uploads a downloadable build artifact (`firmware`).
-- **Pushing a version tag** also creates a GitHub Release containing
-  `firmware.bin`, `manifest.json`, and `checksums.txt`:
+`.github/workflows/build-firmware.yml` builds `firmware.bin` and commits it under
+[`firmware/`](../firmware/) so a device can pull it from a stable raw URL - no
+GitHub Release required, and no zipped Actions artifact to unpack.
 
-  ```bash
-  git tag v1.0.0
-  git push origin v1.0.0
-  ```
+The build is switch-gated, so ordinary commits never rebuild or overwrite the
+published image. A run builds only when `firmware/on` exists and contains `1`:
 
-The workflow forces the OTA build flag, so released images are always
-over-the-air capable, and writes `manifest.json` with the build's ISO-8601
-timestamp as `version` and the release `firmware.bin` as `url`. Because the
-`releases/latest/download/...` URLs are stable across versions, a device whose
-`ota.proxyUrl` points at the latest `manifest.json` always converges on the
-newest release on its next fetch. For a hands-on push instead, run
+```bash
+echo 1 > firmware/on
+git add firmware/on
+git commit -m "build firmware"
+git push
+```
+
+The run then builds (with the OTA flag forced on), writes `firmware/firmware.bin`,
+`firmware/manifest.json`, and `firmware/checksums.txt`, deletes `firmware/on` so
+it is a one-shot, and commits the result. `manifest.json` carries the build's
+ISO-8601 timestamp as `version` and the raw `firmware.bin` URL as `url`, so a
+device whose `ota.proxyUrl` points at the committed `manifest.json` converges on
+the new build on its next check.
+
+For a hands-on push instead, run
 [`scripts/update-esp32.sh`](../scripts/update-esp32.sh) during the device's OTA
-window.
+window (it pushes your local build, or the published one with `--published`).
 
 ### WiFi credentials and OTA security
 
-Released binaries must not carry network secrets. The firmware keeps credentials
+Published binaries must not carry network secrets. The firmware keeps credentials
 out of the image by provisioning them once, over USB, into the device's NVS flash
 (which survives OTA, since an update rewrites only the app partition):
 

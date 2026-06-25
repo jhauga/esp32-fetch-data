@@ -1,26 +1,31 @@
-# Build the OTA firmware and publish the assets the device's proxy update mode
-# consumes. Every push to main produces a downloadable build artifact; pushing a
-# version tag (v*) also creates a GitHub Release containing:
+# Build firmware.bin on demand and commit it into firmware/ so the device's
+# proxy/periodic OTA mode can pull it from a stable raw URL.
 #
-#   firmware.bin   raw image the device flashes over the air
-#   manifest.json  { "version": <ISO-8601 build time>, "url": <latest .bin> }
-#   checksums.txt  SHA-256 of the above, for integrity verification
+# Status: work in progress. The push (window) OTA path is the supported one; this
+# pull pipeline is still being finalized.
 #
-# Point a device at the proxy by setting ota.proxyUrl in config.json to:
-#   https://github.com/<owner>/<repo>/releases/latest/download/manifest.json
-# The "latest/download" URLs are stable across versions, so the device always
-# sees the newest release. The firmware carries no WiFi credentials: those are
-# provisioned to NVS on the first USB flash (see docs/installation.md).
-name: Build & Release Firmware
+# Switch-gated build: a run only builds when firmware/on exists and contains "1".
+# When it does, the run builds firmware.bin, writes firmware/{firmware.bin,
+# manifest.json,checksums.txt}, deletes firmware/on (one-shot), and commits the
+# result back. Otherwise it does nothing. To trigger a build:
+#
+#   echo 1 > firmware/on
+#   git add firmware/on && git commit -m "build firmware" && git push
+#
+# The device pulls from the committed raw URLs (no GitHub Release needed):
+#   ota.proxyUrl = https://raw.githubusercontent.com/<owner>/<repo>/<branch>/firmware/manifest.json
+#
+# firmware.bin carries no WiFi credentials (those are provisioned to NVS on the
+# first USB flash), so publishing it in the repo is safe.
+name: Build Firmware
 
 on:
   push:
     branches: [main]
-    tags: ['v*']
   workflow_dispatch:
 
 permissions:
-  contents: write # required to create releases
+  contents: write # required to commit firmware.bin back to the repo
 
 jobs:
   build:
@@ -29,12 +34,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Gate: build only when the firmware/on switch is present and set to "1".
+      - name: Check build switch
+        id: gate
+        run: |
+          if [ -d firmware ] && [ -f firmware/on ] && \
+             [ "$(tr -d '[:space:]' < firmware/on)" = "1" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "Build switch is on; building firmware."
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "Build switch off (firmware/on absent or not 1); nothing to do."
+          fi
+
       - name: Set up Python
+        if: steps.gate.outputs.build == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
       - name: Cache PlatformIO
+        if: steps.gate.outputs.build == 'true'
         uses: actions/cache@v4
         with:
           path: |
@@ -43,37 +63,35 @@ jobs:
           key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
 
       - name: Install PlatformIO Core
+        if: steps.gate.outputs.build == 'true'
         run: pip install --upgrade platformio
 
-      # Force the OTA build flag here so released images are always
-      # over-the-air capable, regardless of the committed uploadMethod.
+      # Force the OTA build flag so published images are over-the-air capable,
+      # regardless of the committed uploadMethod.
       - name: Build firmware
+        if: steps.gate.outputs.build == 'true'
         env:
           PLATFORMIO_BUILD_FLAGS: -DARDUINO_OTA
         run: pio run -e esp32dev
 
-      - name: Stage release assets
+      - name: Stage firmware/ and flip the switch off
+        if: steps.gate.outputs.build == 'true'
         run: |
-          mkdir -p dist
-          cp .pio/build/esp32dev/firmware.bin dist/firmware.bin
+          cp .pio/build/esp32dev/firmware.bin firmware/firmware.bin
           stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          bin_url="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/firmware.bin"
-          printf '{\n  "version": "%s",\n  "url": "%s"\n}\n' "$stamp" "$bin_url" > dist/manifest.json
-          ( cd dist && sha256sum firmware.bin manifest.json > checksums.txt )
-          echo "Built firmware (version $stamp):"
-          cat dist/manifest.json
+          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/firmware"
+          printf '{\n  "version": "%s",\n  "url": "%s/firmware.bin"\n}\n' "$stamp" "$raw" > firmware/manifest.json
+          ( cd firmware && sha256sum firmware.bin > checksums.txt )
+          rm -f firmware/on
+          echo "Published firmware (version $stamp):"
+          cat firmware/manifest.json
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: firmware
-          path: dist/
-
-      - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/firmware.bin
-            dist/manifest.json
-            dist/checksums.txt
+      - name: Commit firmware
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A firmware/
+          # [skip ci] plus the removed switch both prevent a rebuild loop.
+          git commit -m "ci: publish firmware.bin [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
