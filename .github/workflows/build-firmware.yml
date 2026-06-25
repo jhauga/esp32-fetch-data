@@ -91,7 +91,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A firmware/
+          git add -Af firmware/
           # [skip ci] plus the removed switch both prevent a rebuild loop.
           git commit -m "ci: publish firmware.bin [skip ci]"
           git push origin "HEAD:${GITHUB_REF_NAME}"
