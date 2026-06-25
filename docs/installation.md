@@ -225,7 +225,7 @@ The manifest is small JSON describing the latest build:
 ```json
 {
   "version": "2026-01-01T00:00:00Z",
-  "url": "https://raw.githubusercontent.com/<owner>/<repo>/main/firmware/firmware.bin"
+  "url": "https://github.com/<owner>/<repo>/releases/download/firmware-latest/firmware.bin"
 }
 ```
 
@@ -235,18 +235,20 @@ The manifest is small JSON describing the latest build:
 - `url` - direct link to the raw `firmware.bin` image.
 
 The included [build workflow](#automated-firmware-build-github-actions-wip)
-produces `firmware.bin` and `manifest.json` and commits them under `firmware/`,
-so a typical proxy URL points at the committed manifest:
+produces `firmware.bin` and `manifest.json` and publishes them as assets on the
+rolling `firmware-latest` GitHub Release (they are not tracked in the repo), so a
+typical proxy URL points at the release manifest:
 
 ```text
-https://raw.githubusercontent.com/<owner>/<repo>/main/firmware/manifest.json
+https://github.com/<owner>/<repo>/releases/download/firmware-latest/manifest.json
 ```
 
 > The ESP32 flashes a **raw `firmware.bin`** image and does not unzip archives
 > on-device, so the `url` must point at the `.bin` itself, not a `.zip` or an
-> Actions artifact (which is a zip and needs authentication). HTTPS hosts such as
-> raw.githubusercontent.com work out of the box; the client does not pin a
-> certificate.
+> Actions artifact (which is a zip and needs authentication). Release assets are
+> uploaded as individual downloadable files. Their download URL 302-redirects to
+> the asset CDN; the firmware follows redirects and does not pin a certificate, so
+> the URL above works out of the box.
 
 #### Mode: `periodic` (steady power, always current)
 
@@ -271,9 +273,11 @@ but steady power is what it is meant for.
 > **Work in progress.** This pipeline is still being finalized; expect rough
 > edges. The `window` push path is the reliable update method for now.
 
-`.github/workflows/build-firmware.yml` builds `firmware.bin` and commits it under
-[`firmware/`](../firmware/) so a device can pull it from a stable raw URL - no
-GitHub Release required, and no zipped Actions artifact to unpack.
+`.github/workflows/build-firmware.yml` builds `firmware.bin` and publishes it as
+an asset on the rolling `firmware-latest` GitHub Release, so a device can pull it
+from a stable download URL while the build artifacts stay out of the repo tree.
+The assets are uploaded as individual downloadable files, not a zipped Actions
+artifact, and the rolling tag exists from the first publish so the URL is stable.
 
 The build is switch-gated, so ordinary commits never rebuild or overwrite the
 published image. A run builds only when `firmware/on` exists and contains `1`:
@@ -285,11 +289,12 @@ git commit -m "build firmware"
 git push
 ```
 
-The run then builds (with the OTA flag forced on), writes `firmware/firmware.bin`,
-`firmware/manifest.json`, and `firmware/checksums.txt`, deletes `firmware/on` so
-it is a one-shot, and commits the result. `manifest.json` carries the build's
-ISO-8601 timestamp as `version` and the raw `firmware.bin` URL as `url`, so a
-device whose `ota.proxyUrl` points at the committed `manifest.json` converges on
+The run then builds (with the OTA flag forced on), uploads `firmware.bin`,
+`manifest.json`, and `checksums.txt` to the `firmware-latest` release, deletes
+`firmware/on` so it is a one-shot, and commits **only that switch removal** (the
+built artifacts are never committed). `manifest.json` carries the build's ISO-8601
+timestamp as `version` and the release `firmware.bin` download URL as `url`, so a
+device whose `ota.proxyUrl` points at the published `manifest.json` converges on
 the new build on its next check.
 
 For a hands-on push instead, run

@@ -138,6 +138,10 @@ inline void checkProxy(const AppConfig& cfg) {
   // 1) Fetch the manifest describing the latest available build.
   HTTPClient http;
   http.setTimeout(cfg.httpTimeoutMs);
+  // GitHub release download URLs answer with a 302 to the asset CDN, so follow
+  // redirects to reach the manifest (a raw host like raw.githubusercontent.com
+  // serves it directly, where this is a harmless no-op).
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
   if (!http.begin(*client, cfg.otaProxyUrl)) {
     Serial.println("OTA proxy: manifest request setup failed.");
     return;
@@ -180,6 +184,8 @@ inline void checkProxy(const AppConfig& cfg) {
                 installed.isEmpty() ? "<none>" : installed.c_str(),
                 latest.c_str());
   httpUpdate.rebootOnUpdate(false);
+  // The image URL likewise 302-redirects to the release asset CDN.
+  httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
   const t_httpUpdate_return result = httpUpdate.update(*client, binUrl);
   switch (result) {
     case HTTP_UPDATE_OK:

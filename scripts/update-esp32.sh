@@ -8,21 +8,22 @@
 # uploader bundled with the Arduino core).
 #
 # By default it pushes your local build (.pio/build/esp32dev/firmware.bin). With
-# --published it instead fetches the firmware/firmware.bin that the build
-# workflow committed to the repo.
+# --published it instead fetches the firmware.bin that the build workflow
+# published as a GitHub Release asset (the build artifacts are not tracked in the
+# repo).
 #
 # Usage:
 #   ./scripts/update-esp32.sh <device-ip> [--published]
 #
 #   <device-ip>   the device IP from the serial log (e.g. 192.0.2.42); prefer the
 #                 IP over the .local name, which needs an mDNS resolver
-#   --published   fetch firmware/firmware.bin from the repo instead of the local build
+#   --published   fetch the published firmware.bin release asset instead of the local build
 #
 # Environment overrides:
-#   REPO       owner/repo to pull from   (default: parsed from git remote)
-#   BRANCH     branch for --published     (default: main)
+#   REPO       owner/repo to pull from         (default: parsed from git remote)
+#   TAG        release tag for --published      (default: firmware-latest)
 #   OTA_PASS   password if ota.password is set in config.json
-#   ESPOTA     path to espota.py          (default: auto-detected under PlatformIO)
+#   ESPOTA     path to espota.py                (default: auto-detected under PlatformIO)
 #
 # Trigger the device's OTA window first (press the button), then run this within
 # ota.windowMs. Confirm reachability with: ping <device-ip>
@@ -57,9 +58,10 @@ if [ "${SOURCE}" = "--published" ]; then
     echo "error: could not determine REPO; set REPO=owner/repo" >&2
     exit 1
   fi
-  BIN_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH:-main}/firmware/firmware.bin"
+  BIN_URL="https://github.com/${REPO}/releases/download/${TAG:-firmware-latest}/firmware.bin"
   IMAGE="${workdir}/firmware.bin"
-  echo "Fetching published firmware from ${REPO}..."
+  echo "Fetching published firmware from ${REPO} (release ${TAG:-firmware-latest})..."
+  # -L follows the release download redirect to the asset CDN.
   curl -fL "${BIN_URL}" -o "${IMAGE}"
 else
   IMAGE=".pio/build/esp32dev/firmware.bin"

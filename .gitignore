@@ -8,6 +8,7 @@
 *.elf
 *.map
 build/
+dist/
 
 # IDE
 .vscode/.browse.c_cpp.db*

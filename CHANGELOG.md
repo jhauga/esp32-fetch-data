@@ -3,7 +3,29 @@
 All notable changes to this project are documented in this file. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.2.2] - 2026-06-24
+## [0.2.3] - 2026-06-24
+
+### Changed
+
+- The switch-gated OTA build now publishes `firmware.bin`, `manifest.json`, and
+  `checksums.txt` as assets on a rolling `firmware-latest` GitHub Release instead
+  of committing them under `firmware/`. The build artifacts are no longer tracked
+  in the repo; a run commits only the removal of the `firmware/on` switch. A
+  device points `ota.proxyUrl` at the release manifest download URL
+  (`.../releases/download/firmware-latest/manifest.json`). Assets are uploaded as
+  individual downloadable files (not a zipped Actions artifact) and the rolling
+  tag exists from the first publish, avoiding the two issues that retired the
+  earlier release approach.
+- `update-esp32.sh --published` now fetches the release asset (tag override
+  `TAG`, default `firmware-latest`) rather than a committed raw URL (`BRANCH`).
+
+### Fixed
+
+- The `proxy`/`periodic` OTA client now follows HTTP redirects when fetching the
+  manifest and the firmware image, so GitHub Release download URLs (which 302 to
+  the asset CDN) work on-device. Raw hosts that serve directly are unaffected.
+
+## [0.2.2]
 
 ### Changed
 
@@ -34,7 +56,7 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   explains that the device only answers while its OTA window is open (or
   continuously in `none` power mode).
 
-## [0.2.1] - 2026-06-24
+## [0.2.1]
 
 ### Fixed
 
@@ -45,7 +67,7 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   pins, and light-sleep wake now uses GPIO level wake instead of `ext0`. Any
   valid input pin works; RTC pins still get full deep sleep for the lowest power.
 
-## [0.2.0] - 2026-06-24
+## [0.2.0]
 
 ### Added
 
@@ -84,7 +106,7 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (including the proxy manifest format), the automated build/release pipeline,
   and the credential-provisioning security model.
 
-## [0.1.0] - 2026-06-22
+## [0.1.0]
 
 ### Added
 
@@ -142,7 +164,7 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   simulator, where deep-sleep `ext0` wake did not resume the device. Deep sleep
   remains available as the battery-saving mode via `config.json`.
 
-## [0.0.0-local] - 2026-06-20
+## [0.0.0-local]
 
 ### Added
 

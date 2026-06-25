@@ -176,7 +176,7 @@ then sleeps, so OTA stays compatible with deep sleep. See
 | ----------- | ------ | --------- | ------------------------------------------------------------------------ |
 | `mode`      | string | `window`  | `window` (listen for a pushed update after a fetch), `proxy` (pull a newer build from a manifest after a fetch), or `periodic` (pull on a recurring timer for steady-power devices). |
 | `windowMs`  | number | `60000`   | Window-mode listen duration after each fetch, in milliseconds.           |
-| `proxyUrl`  | string | `""`      | Manifest URL returning `{ "version": ..., "url": ... }` (e.g. a raw `firmware/manifest.json`), used by `proxy` and `periodic`. |
+| `proxyUrl`  | string | `""`      | Manifest URL returning `{ "version": ..., "url": ... }` (e.g. the published `firmware-latest` release `manifest.json`), used by `proxy` and `periodic`. |
 | `password`  | string | `""`      | Optional password the push must supply during the listen window (window mode). |
 | `refreshMs` | number | `3600000` | Periodic-mode poll interval, in milliseconds (default 1 hour).           |
 

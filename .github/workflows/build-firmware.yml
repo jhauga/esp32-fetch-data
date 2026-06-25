@@ -1,22 +1,26 @@
-# Build firmware.bin on demand and commit it into firmware/ so the device's
-# proxy/periodic OTA mode can pull it from a stable raw URL.
+# Build firmware.bin on demand and publish it as GitHub Release assets so the
+# device's proxy/periodic OTA mode can pull it from a stable download URL without
+# the build artifacts ever being tracked in the repo.
 #
 # Status: work in progress. The push (window) OTA path is the supported one; this
 # pull pipeline is still being finalized.
 #
 # Switch-gated build: a run only builds when firmware/on exists and contains "1".
-# When it does, the run builds firmware.bin, writes firmware/{firmware.bin,
-# manifest.json,checksums.txt}, deletes firmware/on (one-shot), and commits the
-# result back. Otherwise it does nothing. To trigger a build:
+# When it does, the run builds firmware.bin, uploads {firmware.bin,manifest.json,
+# checksums.txt} as assets on the rolling "firmware-latest" release, deletes
+# firmware/on (one-shot), and commits only that switch removal back. The built
+# artifacts are never committed. Otherwise the run does nothing. To trigger a build:
 #
 #   echo 1 > firmware/on
 #   git add firmware/on && git commit -m "build firmware" && git push
 #
-# The device pulls from the committed raw URLs (no GitHub Release needed):
-#   ota.proxyUrl = https://raw.githubusercontent.com/<owner>/<repo>/<branch>/firmware/manifest.json
+# The device pulls from the release download URLs (no files in the repo tree):
+#   ota.proxyUrl = https://github.com/<owner>/<repo>/releases/download/firmware-latest/manifest.json
 #
-# firmware.bin carries no WiFi credentials (those are provisioned to NVS on the
-# first USB flash), so publishing it in the repo is safe.
+# Assets are uploaded as individual downloadable files (not a zipped Actions
+# artifact), and the rolling tag exists from the first publish, so the download
+# URL is stable. firmware.bin carries no WiFi credentials (those are provisioned
+# to NVS on the first USB flash), so publishing it is safe.
 name: Build Firmware
 
 on:
@@ -25,7 +29,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # required to commit firmware.bin back to the repo
+  contents: write # required to publish the release and to commit the switch removal
 
 jobs:
   build:
@@ -74,24 +78,42 @@ jobs:
           PLATFORMIO_BUILD_FLAGS: -DARDUINO_OTA
         run: pio run -e esp32dev
 
-      - name: Stage firmware/ and flip the switch off
+      # Publish the build to the rolling "firmware-latest" release. dist/ is a
+      # scratch directory on the runner; nothing here is committed to the repo.
+      - name: Publish firmware release
         if: steps.gate.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp .pio/build/esp32dev/firmware.bin firmware/firmware.bin
+          tag="firmware-latest"
+          mkdir -p dist
+          cp .pio/build/esp32dev/firmware.bin dist/firmware.bin
           stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/firmware"
-          printf '{\n  "version": "%s",\n  "url": "%s/firmware.bin"\n}\n' "$stamp" "$raw" > firmware/manifest.json
-          ( cd firmware && sha256sum firmware.bin > checksums.txt )
-          rm -f firmware/on
-          echo "Published firmware (version $stamp):"
-          cat firmware/manifest.json
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}"
+          printf '{\n  "version": "%s",\n  "url": "%s/firmware.bin"\n}\n' "$stamp" "$base" > dist/manifest.json
+          ( cd dist && sha256sum firmware.bin > checksums.txt )
+          echo "Publishing firmware (version $stamp) to release $tag:"
+          cat dist/manifest.json
+          # Create the rolling release on first run, then clobber its assets on
+          # every later build so the download URL stays the same.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/firmware.bin dist/manifest.json dist/checksums.txt --clobber
+            gh release edit "$tag" --title "Firmware $stamp" \
+              --notes "Automated OTA build published $stamp. These assets are not tracked in the repo."
+          else
+            gh release create "$tag" dist/firmware.bin dist/manifest.json dist/checksums.txt \
+              --title "Firmware $stamp" \
+              --notes "Automated OTA build published $stamp. These assets are not tracked in the repo." \
+              --latest
+          fi
 
-      - name: Commit firmware
+      - name: Flip the build switch off
         if: steps.gate.outputs.build == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -Af firmware/
+          # Stage only the switch removal; the built artifacts are never committed.
+          git rm -f firmware/on
           # [skip ci] plus the removed switch both prevent a rebuild loop.
-          git commit -m "ci: publish firmware.bin [skip ci]"
+          git commit -m "ci: build firmware [skip ci]"
           git push origin "HEAD:${GITHUB_REF_NAME}"
